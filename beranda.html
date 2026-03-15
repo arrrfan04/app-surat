@@ -1,0 +1,877 @@
+<!doctype html>
+<html lang="id" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistem Penomoran Surat Otomatis</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    * { font-family: 'Plus Jakarta Sans', sans-serif; }
+    
+    .glass-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .gradient-bg {
+      background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 50%, #3d7ab5 100%);
+    }
+    
+    .input-focus:focus {
+      box-shadow: 0 0 0 3px rgba(45, 90, 135, 0.2);
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #2d5a87 0%, #1e3a5f 100%);
+      transition: all 0.3s ease;
+    }
+    
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(30, 58, 95, 0.4);
+    }
+    
+    .btn-primary:active:not(:disabled) {
+      transform: translateY(0);
+    }
+    
+    .btn-primary:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+    
+    .result-box {
+      background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+      border: 2px solid #2d5a87;
+    }
+    
+    .toast {
+      animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s forwards;
+    }
+    
+    @keyframes slideIn {
+      from { transform: translateY(-100%); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    
+    @keyframes fadeOut {
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
+    
+    .loading-spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #2d5a87;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+  <style>body { box-sizing: border-box; }</style>
+  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
+ </head>
+ <body class="h-full gradient-bg">
+  <div id="app-container" class="h-full overflow-auto">
+   <!-- Toast Container -->
+   <div id="toast-container" class="fixed top-4 right-4 z-50"></div><!-- Main Container -->
+   <div class="min-h-full p-4 md:p-6 lg:p-8">
+    <!-- Header -->
+    <header class="relative text-center mb-6 md:mb-8">
+      <!-- User Info & Logout -->
+      <div class="absolute top-0 right-0 flex flex-col items-end gap-2">
+        <div id="user-profile" class="bg-white/10 px-3 py-1.5 rounded-lg backdrop-blur-sm border border-white/20 text-right hidden">
+          <p id="display-name" class="text-white text-xs font-bold leading-tight">Admin</p>
+          <p id="display-role" class="text-blue-200 text-[10px] leading-tight font-medium">Administrator</p>
+        </div>
+        <button id="logoutBtn" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 backdrop-blur-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+          Keluar
+        </button>
+      </div>
+
+     <div class="inline-flex items-center gap-3 mb-2">
+      <div class="w-12 h-12 md:w-14 md:h-14 bg-white rounded-xl flex items-center justify-center shadow-lg">
+       <svg class="w-7 h-7 md:w-8 md:h-8 text-[#1e3a5f]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+       </svg>
+      </div>
+     </div>
+     <h1 id="app-title" class="text-2xl md:text-3xl lg:text-4xl font-bold text-white drop-shadow-lg">Sistem Penomoran Surat Otomatis</h1>
+     <p class="text-blue-100 mt-2 text-sm md:text-base">Terintegrasi dengan Penomoran Surat Tata Usaha</p>
+    </header><!-- Main Card -->
+    <!-- Main Content Area -->
+    <main class="max-w-6xl mx-auto">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-start">
+        
+        <!-- Form Section -->
+        <div class="glass-card rounded-2xl shadow-2xl overflow-hidden h-full">
+          <div class="p-5 md:p-8">
+            <form id="surat-form" class="space-y-5">
+              <!-- Tanggal -->
+              <div>
+                <label for="tanggal" class="block text-sm font-semibold text-gray-700 mb-2">📅 Tanggal Surat</label> <input type="date" id="tanggal" name="tanggal" class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 input-focus focus:border-[#2d5a87] outline-none transition-all text-gray-700" required>
+              </div><!-- Nama Pengirim -->
+              <div>
+                <label for="nama-pengirim" class="block text-sm font-semibold text-gray-700 mb-2">👤 Nama Pengirim</label> <input type="text" id="nama-pengirim" name="nama_pengirim" placeholder="Nama pengirim otomatis" class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 outline-none transition-all text-gray-700" readonly required>
+              </div><!-- Perihal -->
+              <div>
+                <label for="perihal" class="block text-sm font-semibold text-gray-700 mb-2">📝 Perihal</label> <textarea id="perihal" name="perihal" placeholder="Masukkan perihal surat" rows="4" class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 input-focus focus:border-[#2d5a87] outline-none transition-all text-gray-700 resize-none" required></textarea>
+              </div><!-- Sifat Surat -->
+              <div>
+                <label for="sifat-surat" class="block text-sm font-semibold text-gray-700 mb-2">⚡ Sifat Surat</label> <select id="sifat-surat" name="sifat_surat" class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 input-focus focus:border-[#2d5a87] outline-none transition-all bg-white cursor-pointer text-gray-700" required> <option value="">-- Pilih Sifat Surat --</option> <option value="Rahasia">🔒 Rahasia</option> <option value="Sangat Segera">🚨 Sangat Segera</option> <option value="Segera">⚡ Segera</option> <option value="Penting">❗ Penting</option> <option value="Biasa">📄 Biasa</option> </select>
+              </div><!-- Kode Klasifikasi -->
+              <div>
+                <label for="kode-klasifikasi" class="block text-sm font-semibold text-gray-700 mb-2">🏷️ Kode Klasifikasi</label> <select id="kode-klasifikasi" name="kode_klasifikasi" class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 input-focus focus:border-[#2d5a87] outline-none transition-all bg-white cursor-pointer text-gray-700" required> <option value="">-- Pilih Kode Klasifikasi --</option> </select>
+                <p id="klasifikasi-loading" class="text-xs text-gray-500 mt-1 hidden"><span class="inline-block loading-spinner mr-2"></span> Memuat data...</p>
+              </div><!-- Tujuan Surat -->
+              <div>
+                <label for="tujuan-surat" class="block text-sm font-semibold text-gray-700 mb-2">📍 Tujuan Surat</label> <input type="text" id="tujuan-surat" name="tujuan_surat" placeholder="Masukkan tujuan surat" class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 input-focus focus:border-[#2d5a87] outline-none transition-all text-gray-700" required>
+              </div><!-- Submit Button --> <button type="submit" id="btn-generate" class="w-full btn-primary text-white font-semibold py-4 rounded-xl flex items-center justify-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg><span id="btn-text">Generate Nomor Surat</span> </button>
+            </form><!-- Result Section -->
+            <div id="result-section" class="mt-6 hidden">
+              <div class="result-box rounded-xl p-5">
+                <p class="text-sm font-medium text-gray-600 mb-2">Nomor Surat yang Dihasilkan:</p>
+                <div class="flex items-center justify-between gap-3 flex-wrap">
+                  <p id="nomor-surat-result" class="text-xl md:text-2xl font-bold text-[#1e3a5f] break-all"></p><button type="button" id="btn-copy" class="flex-shrink-0 bg-[#2d5a87] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#1e3a5f] transition-colors flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg> Salin </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- History Section -->
+        <div class="glass-card rounded-2xl shadow-2xl overflow-hidden h-full">
+          <div class="p-5 md:p-6 h-full flex flex-col">
+             <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <svg class="w-5 h-5 text-[#2d5a87]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg> Riwayat Surat Terakhir
+          </h2>
+          <button id="btn-download-rekap" onclick="downloadRekapPDF()" class="bg-[#2d5a87] hover:bg-[#1e3a5f] text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg> Download Rekap
+          </button>
+        </div>
+            <div id="history-container" class="space-y-4 flex-1 overflow-auto max-h-[700px] pr-2">
+              <p class="text-gray-500 text-sm text-center py-4">Belum ada riwayat surat</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+</div>
+     </div>
+    </main><!-- Footer -->
+    <footer class="text-center mt-8 pb-6">
+     <p class="text-blue-100 text-sm">© 2026 Hak Cipta Lapas Perempuan Kelas III Ternate</p>
+    </footer>
+   </div>
+  </div>
+  <script>
+    // Default Configuration
+    const defaultConfig = {
+      app_title: 'Sistem Penomoran Surat Otomatis',
+      kode_wilayah: 'W.29',
+      kode_satker: 'PAS.12',
+      script_url: 'https://script.google.com/macros/s/AKfycbwfHTx-y5wXWVT--sjC-1fBg7Kjgto3aUUZ2SF8GsnkKDzjOBER_ukm208mlVkqiUi8/exec'
+    };
+
+    let config = { ...defaultConfig };
+    let kodeKlasifikasiList = [];
+    let isLoadingKode = false;
+    let kodeKlasifikasiHash = null;
+    let kodePollingInterval = null;
+    let currentHistoryData = []; // Store fetched history data
+
+    // Initialize Element SDK
+    if (window.elementSdk) {
+      window.elementSdk.init({
+        defaultConfig,
+        onConfigChange: async (newConfig) => {
+          config = { ...defaultConfig, ...newConfig };
+          updateUI();
+        },
+        mapToCapabilities: () => ({
+          recolorables: [],
+          borderables: [],
+          fontEditable: undefined,
+          fontSizeable: undefined
+        }),
+        mapToEditPanelValues: (cfg) => new Map([
+          ['app_title', cfg.app_title || defaultConfig.app_title],
+          ['kode_wilayah', cfg.kode_wilayah || defaultConfig.kode_wilayah],
+          ['kode_satker', cfg.kode_satker || defaultConfig.kode_satker],
+          ['script_url', cfg.script_url || defaultConfig.script_url]
+        ])
+      });
+    }
+
+    // Update UI based on config
+    function updateUI() {
+      const titleEl = document.getElementById('app-title');
+      if (titleEl) titleEl.textContent = config.app_title || defaultConfig.app_title;
+    }
+
+    // Show toast notification
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      const bgColor = type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500';
+      const icon = type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ';
+      
+      toast.className = `toast ${bgColor} text-white px-4 py-3 rounded-lg shadow-lg mb-2 flex items-center gap-2`;
+      toast.innerHTML = `<span class="font-bold">${icon}</span> ${message}`;
+      
+      container.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.remove();
+      }, 3000);
+    }
+
+    // Set today's date as default (WIT/Local Time)
+    function setDefaultDate() {
+      const dateInput = document.getElementById('tanggal');
+      const now = new Date();
+      // Format as YYYY-MM-DD for date input
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      dateInput.value = `${yyyy}-${mm}-${dd}`;
+    }
+
+    // Update date to current date every minute (Real-time default)
+    function updateDateToCurrent() {
+      const dateInput = document.getElementById('tanggal');
+      // If the user has manually changed the date, don't overwrite it
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      const currentDateString = `${yyyy}-${mm}-${dd}`;
+      
+      // If the field is untouched, update it to "real-time"
+      if (!dateInput.dataset.manualSet) {
+        dateInput.value = currentDateString;
+      }
+    }
+
+    setInterval(updateDateToCurrent, 60000);
+
+    // Hash function untuk deteksi perubahan data
+    function hashKodeData(data) {
+      const str = JSON.stringify(data);
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+      }
+      return hash.toString();
+    }
+
+    // Fetch Kode Klasifikasi from Google Sheets
+    async function fetchKodeKlasifikasi() {
+      if (!config.script_url || isLoadingKode) return;
+
+      const cachedKode = sessionStorage.getItem('kodeKlasifikasi');
+      if (cachedKode) {
+        kodeKlasifikasiList = JSON.parse(cachedKode);
+        populateKodeOptions();
+        startKodePolling();
+        return;
+      }
+
+      const loadingEl = document.getElementById('klasifikasi-loading');
+      
+      isLoadingKode = true;
+      loadingEl.classList.remove('hidden');
+      
+      try {
+        const response = await fetch(`${config.script_url}?action=getKode`, {
+          method: 'GET',
+          cache: 'no-cache'
+        });
+        const result = await response.json();
+        
+        if (result.status === 'success') {
+          kodeKlasifikasiList = result.data;
+          sessionStorage.setItem('kodeKlasifikasi', JSON.stringify(kodeKlasifikasiList));
+          kodeKlasifikasiHash = hashKodeData(kodeKlasifikasiList);
+          
+          populateKodeOptions();
+          showToast('Data kode klasifikasi berhasil dimuat', 'success');
+          startKodePolling();
+        } else {
+          showToast('Gagal memuat kode klasifikasi: ' + result.message, 'error');
+        }
+      } catch (error) {
+        console.error('Error fetching kode:', error);
+        showToast('Gagal terhubung ke server', 'error');
+      } finally {
+        isLoadingKode = false;
+        loadingEl.classList.add('hidden');
+      }
+    }
+
+    // Start polling untuk deteksi perubahan realtime
+    function startKodePolling() {
+      if (kodePollingInterval) return;
+      
+      kodePollingInterval = setInterval(async () => {
+        try {
+          const response = await fetch(`${config.script_url}?action=getKode`, {
+            method: 'GET',
+            cache: 'no-cache'
+          });
+          const result = await response.json();
+          
+          if (result.status === 'success') {
+            const newHash = hashKodeData(result.data);
+            
+            if (newHash !== kodeKlasifikasiHash) {
+              kodeKlasifikasiList = result.data;
+              kodeKlasifikasiHash = newHash;
+              sessionStorage.setItem('kodeKlasifikasi', JSON.stringify(kodeKlasifikasiList));
+              populateKodeOptions();
+              showToast('✓ Kode klasifikasi diperbarui', 'info');
+            }
+          }
+        } catch (error) {
+          console.error('Error polling kode:', error);
+        }
+      }, 30000);
+    }
+
+    // Populate dropdown dengan kode klasifikasi
+    function populateKodeOptions() {
+      const selectEl = document.getElementById('kode-klasifikasi');
+      selectEl.innerHTML = '<option value="">-- Pilih Kode Klasifikasi --</option>';
+      
+      kodeKlasifikasiList.forEach(item => {
+        const option = document.createElement('option');
+        option.value = item.kode;
+        option.textContent = `${item.kode} - ${item.keterangan}`;
+        selectEl.appendChild(option);
+      });
+    }
+
+    // Fetch history from Google Sheets
+    async function fetchHistory() {
+      if (!config.script_url) return;
+      
+      try {
+        const response = await fetch(`${config.script_url}?action=getRekap`);
+        const result = await response.json();
+        
+        if (result.status === 'success' && result.data.length > 0) {
+          currentHistoryData = result.data; // Store for PDF recap
+          renderHistory(result.data);
+        }
+      } catch (error) {
+        console.error('Error fetching history:', error);
+      }
+    }
+
+    // Format tanggal ke bahasa Indonesia (Robust local parsing)
+    function formatTanggal(tanggalStr) {
+      if (!tanggalStr) return '-';
+      
+      try {
+        let date;
+        const str = String(tanggalStr);
+
+        // If it's a full ISO string from Apps Script (e.g., 2026-02-28T15:00:00.000Z)
+        // or a date string with timezone, let the browser parse it naturally to local time
+        if (str.includes('T') || str.includes('Z')) {
+          date = new Date(str);
+        } else {
+          // If it's YYYY-MM-DD from the form, use '/' to force local time parsing
+          date = new Date(str.replace(/-/g, '/'));
+        }
+
+        if (isNaN(date.getTime())) return tanggalStr;
+
+        return date.toLocaleDateString('id-ID', { 
+          weekday: 'long',
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        });
+      } catch (e) {
+        console.error('Error formatting date:', e);
+        return tanggalStr;
+      }
+    }
+    
+    // Render history list
+    function renderHistory(data) {
+      const container = document.getElementById('history-container');
+      
+      if (!data || data.length === 0) {
+        container.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">Belum ada riwayat surat</p>';
+        return;
+      }
+      
+      // Use data directly as server already sends newest first (index 0 = latest)
+      const displayData = [...data];
+      
+      container.innerHTML = '';
+      displayData.forEach((item, index) => {
+        const itemEl = document.createElement('div');
+        itemEl.className = 'bg-gray-50 rounded-lg p-4 border border-gray-100 hover:shadow-md transition-shadow';
+        itemEl.innerHTML = `
+          <div class="flex justify-between items-start gap-4">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="px-2 py-0.5 bg-blue-100 text-blue-800 text-[10px] font-bold rounded-full uppercase">${item.sifat_surat}</span>
+                <p class="font-bold text-[#1e3a5f] text-sm truncate">${item.nomor_surat}</p>
+              </div>
+              <p class="text-xs font-semibold text-gray-800 mb-1 leading-tight">${item.perihal}</p>
+              <div class="flex items-center gap-2 text-[10px] text-gray-500">
+                <span>📅 ${formatTanggal(item.tanggal)}</span>
+                <span>•</span>
+                <span>👤 ${item.nama_pengirim}</span>
+              </div>
+            </div>
+          </div>
+        `;
+        container.appendChild(itemEl);
+      });
+    }
+
+    // Helper to get next suffix (0 -> a, 1 -> b, ...)
+    function getSuffixFromNumber(n) {
+      return String.fromCharCode(97 + n); // 97 is ASCII for 'a'
+    }
+
+    // Get next NO URUT based on date
+    async function getNextNoUrut(selectedDate) {
+      if (!config.script_url) return { noUrut: 1, suffix: '' };
+      
+      try {
+        const response = await fetch(`${config.script_url}?action=getRekap`);
+        const result = await response.json();
+        
+        if (result.status === 'success' && result.data.length > 0) {
+          const allData = result.data;
+          const selDate = new Date(String(selectedDate).replace(/-/g, '/'));
+          const normalizedSelected = selDate.toISOString().split('T')[0];
+          
+          const now = new Date();
+          const today = now.toISOString().split('T')[0];
+
+          // 1. Check if there are ALREADY records on this specific date
+          const sameDayRecords = allData.filter(item => {
+            const itemDate = new Date(item.tanggal).toISOString().split('T')[0];
+            return itemDate === normalizedSelected;
+          });
+          
+          if (sameDayRecords.length > 0) {
+            const maxNoUrutInDay = Math.max(...sameDayRecords.map(item => parseInt(item.no_urut) || 0));
+            const suffixesInDay = sameDayRecords
+              .filter(item => (parseInt(item.no_urut) || 0) === maxNoUrutInDay)
+              .map(item => item.nomor_surat.match(/[a-z]+$/))
+              .filter(match => match)
+              .map(match => match[0]);
+              
+            const nextSuffix = suffixesInDay.length === 0 ? 'a' : getSuffixFromNumber(suffixesInDay.sort().pop().charCodeAt(0) - 97 + 1);
+            return { noUrut: maxNoUrutInDay, suffix: nextSuffix };
+          }
+          
+          // 2. If it's a NEW date entry, but in the PAST
+          if (normalizedSelected < today) {
+            // Find the most recent record BEFORE the selected date
+            const previousRecords = allData.filter(item => {
+              const itemDate = new Date(item.tanggal).toISOString().split('T')[0];
+              return itemDate < normalizedSelected;
+            }).sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal));
+
+            if (previousRecords.length > 0) {
+              const baseRecord = previousRecords[0];
+              const baseNoUrut = parseInt(baseRecord.no_urut) || 0;
+              // Check if THIS base number already has suffixes anywhere else (to avoid global conflict)
+              const sameNoUrutRecords = allData.filter(item => (parseInt(item.no_urut) || 0) === baseNoUrut);
+              const existingSuffixes = sameNoUrutRecords
+                .map(item => item.nomor_surat.match(/[a-z]+$/))
+                .filter(match => match)
+                .map(match => match[0]);
+              
+              const nextSuffix = existingSuffixes.length === 0 ? 'a' : getSuffixFromNumber(existingSuffixes.sort().pop().charCodeAt(0) - 97 + 1);
+              return { noUrut: baseNoUrut, suffix: nextSuffix };
+            }
+          }
+
+          // 3. Forward dating or absolute start
+          const maxNoUrutOverall = Math.max(...allData.map(item => parseInt(item.no_urut) || 0));
+          return { noUrut: maxNoUrutOverall + 1, suffix: '' };
+        }
+      } catch (error) {
+        console.error('Error getting next no urut:', error);
+      }
+      return { noUrut: 1, suffix: '' };
+    }
+
+    // Generate nomor surat
+    async function generateNomorSurat(kodeKlasifikasi, selectedDate) {
+      const { noUrut, suffix } = await getNextNoUrut(selectedDate);
+      const nomorSurat = `${config.kode_wilayah}.${config.kode_satker}.${kodeKlasifikasi}-${noUrut}${suffix}`;
+      
+      return { nomorSurat, noUrut, suffix };
+    }
+
+    // Save surat to Google Sheets
+    async function saveSurat(data) {
+      if (!config.script_url) {
+        showToast('URL Script belum dikonfigurasi', 'error');
+        return false;
+      }
+      
+      try {
+        const url = new URL(config.script_url);
+        url.searchParams.append('action', 'saveSurat');
+        url.searchParams.append('no_urut', data.no_urut ? String(data.no_urut) : '');
+        url.searchParams.append('tanggal', data.tanggal || '');
+        url.searchParams.append('nama_pengirim', data.nama_pengirim || '');
+        url.searchParams.append('perihal', data.perihal || '');
+        url.searchParams.append('sifat_surat', data.sifat_surat || '');
+        url.searchParams.append('kode_klasifikasi', data.kode_klasifikasi || '');
+        url.searchParams.append('tujuan_surat', data.tujuan_surat || '');
+        url.searchParams.append('nomor_surat', data.nomor_surat || '');
+        
+        const response = await fetch(url.toString(), {
+          method: 'GET',
+          mode: 'no-cors',
+          cache: 'no-cache'
+        });
+        
+        showToast('✓ Surat sedang disimpan...', 'success');
+        
+        setTimeout(() => {
+          fetchHistory();
+        }, 1000);
+        
+        return true;
+      } catch (error) {
+        console.error('Error saving surat:', error);
+        showToast('Gagal menyimpan surat: ' + error.message, 'error');
+        return false;
+      }
+    }
+
+    // Form submission handler
+    document.getElementById('surat-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const btn = document.getElementById('btn-generate');
+      const btnText = document.getElementById('btn-text');
+      const originalText = btnText.textContent;
+      
+      btn.disabled = true;
+      btnText.innerHTML = '<span class="loading-spinner inline-block mr-2"></span> Memproses...';
+      
+      try {
+        const formData = new FormData(e.target);
+        const tanggal = formData.get('tanggal');
+        const namaPengirim = formData.get('nama_pengirim');
+        const perihal = formData.get('perihal');
+        const sifatSurat = formData.get('sifat_surat');
+        const kodeKlasifikasi = formData.get('kode_klasifikasi');
+        const tujuanSurat = formData.get('tujuan_surat');
+        
+        const { nomorSurat, noUrut, suffix } = await generateNomorSurat(kodeKlasifikasi, tanggal);
+        
+        const saved = await saveSurat({
+          no_urut: noUrut,
+          tanggal: tanggal,
+          nama_pengirim: namaPengirim,
+          perihal: perihal,
+          sifat_surat: sifatSurat,
+          kode_klasifikasi: kodeKlasifikasi,
+          tujuan_surat: tujuanSurat,
+          nomor_surat: nomorSurat,
+          suffix: suffix
+        });
+        
+        const resultSection = document.getElementById('result-section');
+        const nomorSuratResult = document.getElementById('nomor-surat-result');
+        
+        nomorSuratResult.textContent = nomorSurat;
+        resultSection.classList.remove('hidden');
+        
+        if (saved) {
+          await fetchHistory();
+        }
+        
+        e.target.reset();
+        setDefaultDate();
+        
+      } catch (error) {
+        console.error('Error:', error);
+        showToast('Terjadi kesalahan', 'error');
+      } finally {
+        btn.disabled = false;
+        btnText.textContent = originalText;
+      }
+    });
+
+    // Copy nomor surat
+    document.getElementById('btn-copy').addEventListener('click', async () => {
+      const nomorSurat = document.getElementById('nomor-surat-result').textContent;
+      
+      if (!nomorSurat || nomorSurat.trim() === '') {
+        showToast('Nomor surat masih kosong', 'error');
+        return;
+      }
+      
+      try {
+        if (navigator.clipboard) {
+          try {
+            await navigator.clipboard.writeText(nomorSurat);
+            showToast('✓ Nomor surat disalin: ' + nomorSurat, 'success');
+            return;
+          } catch (clipErr) {
+            console.warn('Clipboard API failed, trying fallback...');
+          }
+        }
+        
+        const textarea = document.createElement('textarea');
+        textarea.value = nomorSurat;
+        textarea.style.position = 'absolute';
+        textarea.style.top = '0';
+        textarea.style.left = '0';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        
+        textarea.focus();
+        textarea.select();
+        
+        const success = document.execCommand('copy');
+        document.body.removeChild(textarea);
+        
+        if (success) {
+          showToast('✓ Nomor surat disalin: ' + nomorSurat, 'success');
+        } else {
+          throw new Error('execCommand copy failed');
+        }
+      } catch (err) {
+        console.error('Copy error:', err);
+        showToast('Gagal menyalin, silakan copy manual', 'error');
+      }
+    });
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      setDefaultDate();
+      // Auto-populate sender name based on access code
+      function setSenderName() {
+        let accessCode = sessionStorage.getItem('accessCode');
+        const userDataStr = sessionStorage.getItem('userData');
+        
+        // Fallback: If accessCode isn't in storage yet, derive it from userData role
+        if (!accessCode && userDataStr) {
+          try {
+            const userData = JSON.parse(userDataStr);
+            if (userData.role === 'Tata Usaha') accessCode = 'TU123';
+            else if (userData.role === 'KAMTIB') accessCode = 'KAMTIB123';
+            else if (userData.role === 'AO') accessCode = 'AO123';
+            else if (userData.role === 'Pembinaan') accessCode = 'PEMBINAAN123';
+          } catch (e) {}
+        }
+
+        const senderInput = document.getElementById('nama-pengirim');
+        const mapping = {
+          'TU123': 'Tata Usaha',
+          'KAMTIB123': 'Keamanan & Ketertiban',
+          'AO123': 'Admisi & Oreintasi',
+          'PEMBINAAN123': 'Pembinaan'
+        };
+
+        if (accessCode && mapping[accessCode]) {
+          senderInput.value = mapping[accessCode];
+        }
+        senderInput.readOnly = true; 
+      }
+      setSenderName(); // Call the function after defining it
+      
+      // Update User Profile Display
+      const userDataStr = sessionStorage.getItem('userData');
+      if (userDataStr) {
+        try {
+          const userData = JSON.parse(userDataStr);
+          const nameEl = document.getElementById('display-name');
+          const roleEl = document.getElementById('display-role');
+          const profileEl = document.getElementById('user-profile');
+          
+          if (nameEl) nameEl.textContent = userData.nama || 'Admin';
+          if (roleEl) roleEl.textContent = userData.role || 'User';
+          if (profileEl) profileEl.classList.remove('hidden');
+        } catch (e) {
+          console.error('Error parsing userData:', e);
+        }
+      }
+
+      fetchKodeKlasifikasi();
+      fetchHistory();
+
+      // Mark date as manually set if user changes it
+      document.getElementById('tanggal').addEventListener('change', (e) => {
+        e.target.dataset.manualSet = "true";
+      });
+    });
+   // Logout functionality
+   document.getElementById('logoutBtn').addEventListener('click', () => {
+     sessionStorage.removeItem('isLoggedIn');
+     sessionStorage.removeItem('userData');
+     window.location.href = 'index.html';
+   });
+
+   // Session check
+   window.addEventListener('DOMContentLoaded', () => {
+     if (sessionStorage.getItem('isLoggedIn') !== 'true') {
+       window.location.href = 'index.html';
+     }
+    });
+    
+    // Download Rekap PDF function
+    window.downloadRekapPDF = function() {
+      if (!currentHistoryData || currentHistoryData.length === 0) {
+        showToast('Belum ada data untuk diunduh', 'error');
+        return;
+      }
+      
+      try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('landscape');
+        
+        // Header
+        doc.setFontSize(18);
+        doc.setTextColor(30, 58, 95);
+        doc.text('REKAPITULASI PENOMORAN SURAT', 148, 20, { align: 'center' });
+        
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text('Lapas Perempuan Kelas III Ternate', 148, 28, { align: 'center' });
+        
+        // Data Sorting: Priority by Letter Number and Suffix (1, 1a, 1b, 2...)
+        const sortedData = [...currentHistoryData].sort((a, b) => {
+          // 1. Primary Sort: Letter Number (no_urut)
+          const numA = parseInt(a.no_urut) || 0;
+          const numB = parseInt(b.no_urut) || 0;
+          if (numA !== numB) return numA - numB;
+          
+          // 2. Secondary Sort: Suffix (a, b, c...)
+          const sA = a.nomor_surat.match(/[a-z]+$/) ? a.nomor_surat.match(/[a-z]+$/)[0] : '';
+          const sB = b.nomor_surat.match(/[a-z]+$/) ? b.nomor_surat.match(/[a-z]+$/)[0] : '';
+          if (sA !== sB) return sA.localeCompare(sB);
+
+          // 3. Tertiary Sort: Date (as fallback)
+          const parseLocalForPDF = (s) => {
+            if (!s) return 0;
+            const str = String(s).split('T')[0];
+            let year, month, day;
+            if (str.includes('-')) {
+              const parts = str.split('-');
+              if (parts[0].length === 4) { [year, month, day] = parts; }
+              else { [day, month, year] = parts; }
+            } else if (str.includes('/')) {
+              const parts = str.split('/');
+              if (parts[2].length === 4) { [day, month, year] = parts; }
+              else { [year, month, day] = parts; }
+            }
+            if (year) return new Date(year, parseInt(month) - 1, day).getTime();
+            return new Date(str.replace(/-/g, '/')).getTime() || 0;
+          };
+          
+          return parseLocalForPDF(a.tanggal) - parseLocalForPDF(b.tanggal);
+        });
+        
+        // Content Table
+        // Column Order: No, Tanggal, Nama Pengirim, Perihal, Sifat Surat, Kode Klasifikasi, Tujuan Surat, Nomor Surat
+        const tableBody = sortedData.map((item, index) => [
+          index + 1,
+          formatTanggal(item.tanggal),
+          item.nama_pengirim,
+          item.perihal,
+          item.sifat_surat,
+          item.kode_klasifikasi,
+          item.tujuan_surat,
+          item.nomor_surat
+        ]);
+        
+        doc.autoTable({
+          startY: 40,
+          head: [['No', 'Tanggal', 'Pengirim', 'Perihal', 'Sifat', 'Klasifikasi', 'Tujuan', 'Nomor Surat']],
+          body: tableBody,
+          theme: 'striped',
+          headStyles: { fillColor: [45, 90, 135], fontSize: 8 },
+          styles: { fontSize: 7, cellPadding: 2 },
+          columnStyles: {
+            0: { cellWidth: 10 },
+            1: { cellWidth: 35 },
+            2: { cellWidth: 30 },
+            3: { cellWidth: 50 },
+            4: { cellWidth: 15 },
+            5: { cellWidth: 20 },
+            6: { cellWidth: 30 },
+            7: { cellWidth: 40 }
+          }
+        });
+        
+        // Footer
+        const finalY = doc.lastAutoTable.finalY || 150;
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        const timestamp = new Date().toLocaleString('id-ID');
+        doc.text(`Banyaknya records: ${sortedData.length} | Dicetak pada: ${timestamp}`, 15, finalY + 15);
+        
+        // Generate Data URI (Bypasses some blob renaming issues)
+        const dataUri = doc.output('datauristring');
+        const fileName = "REKAP.pdf";
+        
+        const link = document.createElement('a');
+        link.href = dataUri;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        showToast('✓ Rekap PDF Berhasil diunduh', 'success');
+        console.log('PDF Download initiated via Data URI:', fileName);
+      } catch (error) {
+        console.error('PDF Generation Error:', error);
+        showToast('Gagal memproses rekap PDF', 'error');
+        
+        // Fallback to doc.save if anything fails
+        try {
+          doc.save('REKAP.pdf');
+        } catch (e) {
+          console.error('Emergency save failed:', e);
+        }
+      }
+    };
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9dc00b5c479f4f19',t:'MTc3MzQ1NzM5Ny4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>

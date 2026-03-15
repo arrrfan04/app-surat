@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="id">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistem Penomoran Surat</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    html, body {
+      height: 100%;
+      width: 100%;
+    }
+
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+      animation: gradientShift 15s ease infinite;
+      background-size: 400% 400%;
+    }
+
+    @keyframes gradientShift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+
+    .login-container {
+      width: 100%;
+      max-width: 900px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 40px 80px rgba(0, 0, 0, 0.25);
+      animation: containerSlideIn 0.8s ease-out;
+    }
+
+    @keyframes containerSlideIn {
+      from {
+        opacity: 0;
+        transform: scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    .login-left {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 60px 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .login-left::before {
+      content: '';
+      position: absolute;
+      width: 300px;
+      height: 300px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+      top: -100px;
+      right: -100px;
+    }
+
+    .login-left::after {
+      content: '';
+      position: absolute;
+      width: 200px;
+      height: 200px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 50%;
+      bottom: -80px;
+      left: -50px;
+    }
+
+    .left-content {
+      position: relative;
+      z-index: 2;
+    }
+
+    .left-icon {
+      font-size: 64px;
+      margin-bottom: 20px;
+      animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-15px); }
+    }
+
+    .left-title {
+      font-size: 32px;
+      font-weight: 900;
+      margin-bottom: 12px;
+      letter-spacing: -1px;
+    }
+
+    .left-subtitle {
+      font-size: 14px;
+      opacity: 0.9;
+      line-height: 1.8;
+      margin-bottom: 30px;
+    }
+
+    .left-feature {
+      font-size: 13px;
+      opacity: 0.85;
+      margin: 12px 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .left-feature::before {
+      content: '✓';
+      font-weight: bold;
+      font-size: 18px;
+    }
+
+    .login-right {
+      background: white;
+      padding: 60px 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .login-card {
+      animation: cardSlideIn 0.8s ease-out 0.2s both;
+    }
+
+    @keyframes cardSlideIn {
+      from {
+        opacity: 0;
+        transform: translateX(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    .app-title {
+      font-size: 28px;
+      font-weight: 900;
+      color: #1a202c;
+      margin-bottom: 6px;
+      letter-spacing: -0.8px;
+      text-align: center;
+    }
+
+    .app-subtitle {
+      font-size: 16px;
+      color: #667eea;
+      margin-bottom: 36px;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .form-group {
+      margin-bottom: 24px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: #2d3748;
+      margin-bottom: 8px;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      font-size: 14px;
+      transition: all 0.3s ease;
+      background: #f8f9fa;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: #667eea;
+      background: white;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .form-input::placeholder {
+      color: #a0aec0;
+    }
+
+    .login-btn {
+      width: 100%;
+      padding: 14px 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-top: 8px;
+      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+    }
+
+    .login-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 28px rgba(102, 126, 234, 0.4);
+    }
+
+    .login-btn:active {
+      transform: translateY(0);
+    }
+
+    .login-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .remember-forgot {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      font-size: 14px;
+    }
+
+    .remember-check {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #4a5568;
+    }
+
+    .remember-check input {
+      cursor: pointer;
+      width: 16px;
+      height: 16px;
+    }
+
+    .forgot-link {
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 600;
+      transition: color 0.3s ease;
+    }
+
+    .forgot-link:hover {
+      color: #764ba2;
+    }
+
+    .signup-link {
+      text-align: center;
+      margin-top: 24px;
+      font-size: 14px;
+      color: #718096;
+    }
+
+    .error-message {
+      background: #fed7d7;
+      color: #c53030;
+      padding: 12px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      display: none;
+      animation: slideDown 0.3s ease;
+    }
+
+    .error-message.show {
+      display: block;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .success-message {
+      background: #c6f6d5;
+      color: #22543d;
+      padding: 12px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      display: none;
+      animation: slideDown 0.3s ease;
+    }
+
+    .success-message.show {
+      display: block;
+    }
+
+    @media (max-width: 768px) {
+      .login-container {
+        grid-template-columns: 1fr;
+      }
+
+      .login-left {
+        padding: 40px 30px;
+        display: none;
+      }
+
+      .login-right {
+        padding: 40px 30px;
+      }
+
+      .left-title {
+        font-size: 24px;
+      }
+
+      .app-title {
+        font-size: 24px;
+      }
+    }
+  </style>
+  <style>body { box-sizing: border-box; }</style>
+  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
+ </head>
+ <body>
+  <div class="login-container">
+   <div class="login-left">
+    <div class="left-content">
+     <div class="left-icon">
+      📋
+     </div>
+     <h1 class="left-title">Sistem Penomoran Surat Otomatis</h1>
+     <p class="left-subtitle">LAPAS PEREMPUAN KELAS III TERNATE</p>
+     <div class="left-feature">
+      Penomoran Otomatis
+     </div>
+     <div class="left-feature">
+      Tracking Realtime
+     </div>
+     <div class="left-feature">
+      Laporan Lengkap
+     </div>
+    </div>
+   </div>
+   <div class="login-right">
+    <div class="login-card">
+     <h2 class="app-title">SPSO</h2>
+     <p class="app-subtitle"><strong>SISTEM PENOMORAN SURAT OTOMATIS LAPAS PEREMPUAN TERNATE</strong></p>
+     <div class="error-message" id="errorMsg"></div>
+     <div class="success-message" id="successMsg"></div>
+      <form id="loginForm">
+        <div class="form-group">
+          <label class="form-label" for="accessCode">Kode Akses</label>
+          <input type="password" id="accessCode" class="form-input" placeholder="Masukkan kode akses" required>
+        </div>
+        <button type="submit" class="login-btn" id="loginBtn">Masuk</button>
+      </form>
+     <div class="signup-link">
+      Gunakan akun yang telah diberikan untuk akses
+     </div>
+    </div>
+   </div>
+  </div>
+  <script>
+    const loginForm = document.getElementById('loginForm');
+    const accessCodeInput = document.getElementById('accessCode');
+    const loginBtn = document.getElementById('loginBtn');
+    const errorMsg = document.getElementById('errorMsg');
+    const successMsg = document.getElementById('successMsg');
+
+    // Access Code Mapping
+    const ACCESS_CODES = {
+      'TU123': { nama: 'Petugas TU', role: 'Tata Usaha' },
+      'KAMTIB123': { nama: 'Petugas KAMTIB', role: 'KAMTIB' },
+      'AO123': { nama: 'Petugas AO', role: 'AO' },
+      'PEMBINAAN123': { nama: 'Petugas Pembinaan', role: 'Pembinaan' }
+    };
+
+    loginForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      // Clear messages
+      errorMsg.classList.remove('show');
+      successMsg.classList.remove('show');
+      
+      const code = accessCodeInput.value.trim().toUpperCase();
+
+      // Validation
+      if (!code) {
+        showError('Kode akses tidak boleh kosong');
+        return;
+      }
+
+      // Disable button dan show loading
+      loginBtn.disabled = true;
+      loginBtn.textContent = 'Memproses...';
+
+      // Simulate network delay for better UX
+      setTimeout(() => {
+        const userData = ACCESS_CODES[code];
+
+        if (userData) {
+          showSuccess('LOGIN BERHASIL!');
+          loginForm.reset();
+
+          // Store login session
+          sessionStorage.setItem('isLoggedIn', 'true');
+          sessionStorage.setItem('accessCode', code);
+          sessionStorage.setItem('userData', JSON.stringify(userData));
+
+          // Redirect to BERANDA.html after 1.5 seconds
+          setTimeout(() => {
+            window.location.href = 'BERANDA.html';
+          }, 1500);
+        } else {
+          showError('Kode akses salah atau tidak terdaftar');
+          loginBtn.disabled = false;
+          loginBtn.textContent = 'Masuk';
+        }
+      }, 800);
+    });
+
+    function showError(message) {
+      errorMsg.textContent = message;
+      errorMsg.classList.add('show');
+    }
+
+    function showSuccess(message) {
+      successMsg.textContent = message;
+      successMsg.classList.add('show');
+    }
+
+    function showDashboard(userData = null) {
+      // Hide login container
+      document.querySelector('.login-container').style.display = 'none';
+      
+      const nama = userData?.nama || 'User';
+      const role = userData?.role || 'User';
+      
+      // Create and show dashboard
+      const dashboard = document.createElement('div');
+      dashboard.id = 'dashboard-view';
+      dashboard.innerHTML = `
+        <div class="min-h-screen flex items-center justify-center p-4">
+          <div class="bg-white max-w-md w-full rounded-2xl shadow-2xl p-8 text-center" style="animation: containerSlideIn 0.8s ease-out;">
+            <div class="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+              <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-800 mb-2">Selamat Datang, ${nama}!</h1>
+            <p class="text-gray-600 mb-8">Anda berhasil masuk sebagai <span class="font-bold text-[#667eea]">${role}</span>.</p>
+            
+            <div class="space-y-4">
+              <a href="BERANDA.html" class="block w-full bg-gradient-to-r from-[#667eea] to-[#764ba2] text-white font-semibold py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 no-underline">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                </svg>
+                Buka Aplikasi Utama
+              </a>
+              
+              <button id="logoutBtn" class="w-full bg-gray-100 text-gray-700 font-semibold py-3 rounded-xl hover:bg-gray-200 transition-colors">
+                Keluar
+              </button>
+            </div>
+            <p class="text-xs text-gray-400 mt-8">Sistem Penomoran Surat Otomatis © 2026</p>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(dashboard);
+      
+      // Add logout functionality
+      document.getElementById('logoutBtn').addEventListener('click', () => {
+        sessionStorage.removeItem('isLoggedIn');
+        sessionStorage.removeItem('userData');
+        location.reload();
+      });
+    }
+
+    // Check if already logged in
+    window.addEventListener('DOMContentLoaded', () => {
+      if (sessionStorage.getItem('isLoggedIn') === 'true') {
+        const userData = JSON.parse(sessionStorage.getItem('userData') || 'null');
+        showDashboard(userData);
+      }
+    });
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9d7a035844c32ce1',t:'MTc3MjcyMzA2NS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
