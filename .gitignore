@@ -1,0 +1,16 @@
+# IDE and generic files
+.gemini/
+brain/
+tmp/
+.vscode/
+.idea/
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+# Media / Big files (Optional)
+# If you don't want to upload the logo or other assets to GitHub
+# logo-kemenimpas.png
