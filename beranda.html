@@ -103,10 +103,8 @@
       </div>
 
      <div class="inline-flex items-center gap-3 mb-2">
-      <div class="w-12 h-12 md:w-14 md:h-14 bg-white rounded-xl flex items-center justify-center shadow-lg">
-       <svg class="w-7 h-7 md:w-8 md:h-8 text-[#1e3a5f]" fill="none" stroke="currentColor" viewbox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-       </svg>
+      <div class="w-12 h-12 md:w-14 md:h-14 bg-white rounded-xl flex items-center justify-center shadow-lg overflow-hidden">
+       <img src="logo-kemenimpas.png" alt="Logo Kemenimpas" class="w-10 h-10 md:w-12 md:h-12 object-contain">
       </div>
      </div>
      <h1 id="app-title" class="text-2xl md:text-3xl lg:text-4xl font-bold text-white drop-shadow-lg">Sistem Penomoran Surat Otomatis</h1>
@@ -122,7 +120,11 @@
             <form id="surat-form" class="space-y-5">
               <!-- Tanggal -->
               <div>
-                <label for="tanggal" class="block text-sm font-semibold text-gray-700 mb-2">📅 Tanggal Surat</label> <input type="date" id="tanggal" name="tanggal" class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 input-focus focus:border-[#2d5a87] outline-none transition-all text-gray-700" required>
+                <div class="flex items-center justify-between mb-2">
+                  <label for="tanggal" class="block text-sm font-semibold text-gray-700">📅 Tanggal Surat</label> 
+                  <span id="next-no-badge" class="px-2 py-0.5 bg-blue-50 text-[#2d5a87] text-[10px] font-bold rounded-lg border border-blue-100 hidden">Next No: -</span>
+                </div>
+                <input type="date" id="tanggal" name="tanggal" class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 input-focus focus:border-[#2d5a87] outline-none transition-all text-gray-700" required>
               </div><!-- Nama Pengirim -->
               <div>
                 <label for="nama-pengirim" class="block text-sm font-semibold text-gray-700 mb-2">👤 Nama Pengirim</label> <input type="text" id="nama-pengirim" name="nama_pengirim" placeholder="Nama pengirim otomatis" class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 outline-none transition-all text-gray-700" readonly required>
@@ -198,6 +200,11 @@
       script_url: 'https://script.google.com/macros/s/AKfycbwfHTx-y5wXWVT--sjC-1fBg7Kjgto3aUUZ2SF8GsnkKDzjOBER_ukm208mlVkqiUi8/exec'
     };
 
+    // IMPORTANT: Check session first before anything else to prevent fetch cancellations
+    if (sessionStorage.getItem('isLoggedIn') !== 'true') {
+      window.location.href = 'index.html';
+    }
+
     let config = { ...defaultConfig };
     let kodeKlasifikasiList = [];
     let isLoadingKode = false;
@@ -260,6 +267,7 @@
       const mm = String(now.getMonth() + 1).padStart(2, '0');
       const dd = String(now.getDate()).padStart(2, '0');
       dateInput.value = `${yyyy}-${mm}-${dd}`;
+      updateNextNumber(); // Sync badge on init
     }
 
     // Update date to current date every minute (Real-time default)
@@ -275,6 +283,7 @@
       // If the field is untouched, update it to "real-time"
       if (!dateInput.dataset.manualSet) {
         dateInput.value = currentDateString;
+        updateNextNumber(); // Keep badge synced
       }
     }
 
@@ -314,6 +323,9 @@
           method: 'GET',
           cache: 'no-cache'
         });
+        
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        
         const result = await response.json();
         
         if (result.status === 'success') {
@@ -329,7 +341,7 @@
         }
       } catch (error) {
         console.error('Error fetching kode:', error);
-        showToast('Gagal terhubung ke server', 'error');
+        showToast('Gagal terhubung ke server: ' + error.message, 'error');
       } finally {
         isLoadingKode = false;
         loadingEl.classList.add('hidden');
@@ -362,7 +374,7 @@
         } catch (error) {
           console.error('Error polling kode:', error);
         }
-      }, 30000);
+      }, 60000);
     }
 
     // Populate dropdown dengan kode klasifikasi
@@ -387,43 +399,76 @@
         const result = await response.json();
         
         if (result.status === 'success' && result.data.length > 0) {
-          currentHistoryData = result.data; // Store for PDF recap
+          currentHistoryData = result.data;
           renderHistory(result.data);
+          updateNextNumber(); // Sync badge with latest numbering
         }
       } catch (error) {
         console.error('Error fetching history:', error);
       }
     }
 
+    // Update real-time "Next No" indicator (v35)
+    function updateNextNumber() {
+      const tanggalInput = document.getElementById('tanggal');
+      const badge = document.getElementById('next-no-badge');
+      if (!tanggalInput || !badge) return;
+
+      const selectedDate = tanggalInput.value;
+      if (!selectedDate) {
+        badge.classList.add('hidden');
+        return;
+      }
+
+      // getNextNoUrut is synchronous and uses currentHistoryData
+      const { noUrut, suffix } = getNextNoUrut(selectedDate);
+      badge.textContent = `Next No: ${noUrut}${suffix}`;
+      badge.classList.remove('hidden');
+      console.log(`[TRACE] v35 NextNo Badge: ${noUrut}${suffix}`);
+    }
+
     // Format tanggal ke bahasa Indonesia (Robust local parsing)
     function formatTanggal(tanggalStr) {
       if (!tanggalStr) return '-';
-      
       try {
-        let date;
-        const str = String(tanggalStr);
-
-        // If it's a full ISO string from Apps Script (e.g., 2026-02-28T15:00:00.000Z)
-        // or a date string with timezone, let the browser parse it naturally to local time
-        if (str.includes('T') || str.includes('Z')) {
-          date = new Date(str);
-        } else {
-          // If it's YYYY-MM-DD from the form, use '/' to force local time parsing
-          date = new Date(str.replace(/-/g, '/'));
-        }
-
-        if (isNaN(date.getTime())) return tanggalStr;
-
+        const date = safeParseDate(tanggalStr);
+        if (!date || isNaN(date.getTime())) return String(tanggalStr);
         return date.toLocaleDateString('id-ID', { 
-          weekday: 'long',
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric' 
+          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
         });
-      } catch (e) {
-        console.error('Error formatting date:', e);
-        return tanggalStr;
-      }
+      } catch (e) { return String(tanggalStr); }
+    }
+
+    /** 1. Ultra-Safe Date Parser (ID/US/ISO) */
+    function safeParseDate(input) {
+      if (!input) return null;
+      if (input instanceof Date) return new Date(input.getFullYear(), input.getMonth(), input.getDate());
+      let str = String(input).trim().replace(/^[a-z]+,\s*/i, '').replace(/,/g, '');
+      const ymd = str.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+      if (ymd) return new Date(parseInt(ymd[1]), parseInt(ymd[2]) - 1, parseInt(ymd[3]));
+      const dmy = str.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+      if (dmy) return new Date(parseInt(dmy[3]), parseInt(dmy[2]) - 1, parseInt(dmy[1]));
+      const months = { 'januari': 0, 'februari': 1, 'maret': 2, 'april': 3, 'mei': 4, 'juni': 5, 'juli': 6, 'agustus': 7, 'september': 8, 'oktober': 9, 'november': 10, 'desember': 11 };
+      const sm = str.toLowerCase().match(/(\d{1,2})\s+([a-z]+)\s+(\d{4})/);
+      if (sm && months[sm[2]] !== undefined) return new Date(parseInt(sm[3]), months[sm[2]], parseInt(sm[1]));
+      const d = new Date(str);
+      return isNaN(d.getTime()) ? null : new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    }
+
+    /** 2. Safe Local Date String Generator (YYYY-MM-DD) */
+    function toLocalDateString(dateInput) {
+      const d = safeParseDate(dateInput);
+      return d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : '';
+    }
+
+    // Helper to get calendar days difference between two dates
+    function getDaysBetween(date1, date2) {
+      const d1 = safeParseDate(date1);
+      const d2 = safeParseDate(date2);
+      if (!d1 || !d2) return 0;
+      const utc1 = Date.UTC(d1.getFullYear(), d1.getMonth(), d1.getDate());
+      const utc2 = Date.UTC(d2.getFullYear(), d2.getMonth(), d2.getDate());
+      return Math.floor(Math.abs(utc2 - utc1) / (1000 * 60 * 60 * 24));
     }
     
     // Render history list
@@ -435,7 +480,7 @@
         return;
       }
       
-      // Use data directly as server already sends newest first (index 0 = latest)
+      // User requested strictly "newest action first" at the top (LIFO)
       const displayData = [...data];
       
       container.innerHTML = '';
@@ -462,83 +507,154 @@
       });
     }
 
-    // Helper to get next suffix (0 -> a, 1 -> b, ...)
-    function getSuffixFromNumber(n) {
-      return String.fromCharCode(97 + n); // 97 is ASCII for 'a'
+    /** 1. Ultra-Safe Date Parser (v12) */
+    function safeParseDate(input) {
+      if (!input) return null;
+      if (input instanceof Date) return new Date(input.getFullYear(), input.getMonth(), input.getDate());
+      let str = String(input).trim().replace(/^[a-z]+,\s*/i, '').replace(/,/g, '');
+      const simpleYMD = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (simpleYMD) return new Date(parseInt(simpleYMD[1]), parseInt(simpleYMD[2]) - 1, parseInt(simpleYMD[3]));
+      const months = { 'januari': 0, 'februari': 1, 'maret': 2, 'april': 3, 'mei': 4, 'juni': 5, 'juli': 6, 'agustus': 7, 'september': 8, 'oktober': 9, 'november': 10, 'desember': 11 };
+      const sm = str.toLowerCase().match(/(\d{1,2})\s+([a-z]+)\s+(\d{4})/);
+      if (sm && months[sm[2]] !== undefined) return new Date(parseInt(sm[3]), months[sm[2]], parseInt(sm[1]));
+      const d = new Date(str);
+      if (isNaN(d.getTime())) return null;
+      const shifted = new Date(d.getTime() + (12 * 60 * 60 * 1000));
+      return new Date(shifted.getFullYear(), shifted.getMonth(), shifted.getDate());
     }
 
-    // Get next NO URUT based on date
-    async function getNextNoUrut(selectedDate) {
-      if (!config.script_url) return { noUrut: 1, suffix: '' };
+    function toLocalDateString(dateInput) {
+      const d = safeParseDate(dateInput);
+      return d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : '';
+    }
+
+    function getSuffix(str) {
+      if (!str) return '';
+      const m = String(str).match(/[a-z]+$/i);
+      return m ? m[0].toLowerCase() : '';
+    }
+    function getSuffixFromNumber(n) {
+      let result = '';
+      while (n > 0) {
+        let remainder = (n - 1) % 26;
+        result = String.fromCharCode(97 + remainder) + result;
+        n = Math.floor((n - 1) / 26);
+      }
+      return result;
+    }
+
+    /** 5. Priority Gap-Filling Logic (v34.2) */
+    function getNextNoUrut(selectedDate, dataOverride) {
+      const rawData = dataOverride || currentHistoryData || [];
+      const normalizedSelected = toLocalDateString(selectedDate);
+      if (!normalizedSelected) return { noUrut: 1, suffix: '' };
       
       try {
-        const response = await fetch(`${config.script_url}?action=getRekap`);
-        const result = await response.json();
+        if (!Array.isArray(rawData) || rawData.length === 0) return { noUrut: 1, suffix: '' };
         
-        if (result.status === 'success' && result.data.length > 0) {
-          const allData = result.data;
-          const selDate = new Date(String(selectedDate).replace(/-/g, '/'));
-          const normalizedSelected = selDate.toISOString().split('T')[0];
-          
-          const now = new Date();
-          const today = now.toISOString().split('T')[0];
-
-          // 1. Check if there are ALREADY records on this specific date
-          const sameDayRecords = allData.filter(item => {
-            const itemDate = new Date(item.tanggal).toISOString().split('T')[0];
-            return itemDate === normalizedSelected;
-          });
-          
-          if (sameDayRecords.length > 0) {
-            const maxNoUrutInDay = Math.max(...sameDayRecords.map(item => parseInt(item.no_urut) || 0));
-            const suffixesInDay = sameDayRecords
-              .filter(item => (parseInt(item.no_urut) || 0) === maxNoUrutInDay)
-              .map(item => item.nomor_surat.match(/[a-z]+$/))
-              .filter(match => match)
-              .map(match => match[0]);
-              
-            const nextSuffix = suffixesInDay.length === 0 ? 'a' : getSuffixFromNumber(suffixesInDay.sort().pop().charCodeAt(0) - 97 + 1);
-            return { noUrut: maxNoUrutInDay, suffix: nextSuffix };
+        const allData = rawData.map(item => {
+          let rawTgl = '', rawNo = '', rawNomor = '';
+          for (let key in item) {
+             const keyLower = key.toLowerCase();
+             const val = String(item[key] || '').trim();
+             if (keyLower.includes('tanggal') || keyLower.includes('date')) rawTgl = val;
+             if (keyLower.includes('no') || keyLower.includes('urut') || keyLower.includes('nomor')) {
+                const parts = val.split('-');
+                const tailPart = parts[parts.length - 1]; 
+                const numericMatch = tailPart.match(/\d+/);
+                if (numericMatch) rawNo = numericMatch[0];
+                if (keyLower.includes('nomor')) rawNomor = val;
+             }
+             if (!rawTgl && /\\d{4}-\\d{2}-\\d{2}/.test(val)) rawTgl = val;
+             if (!rawTgl && /\\d{1,2}\\s+[a-z]+\\s+\\d{4}/i.test(val)) rawTgl = val;
           }
-          
-          // 2. If it's a NEW date entry, but in the PAST
-          if (normalizedSelected < today) {
-            // Find the most recent record BEFORE the selected date
-            const previousRecords = allData.filter(item => {
-              const itemDate = new Date(item.tanggal).toISOString().split('T')[0];
-              return itemDate < normalizedSelected;
-            }).sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal));
+          const time = safeParseDate(rawTgl)?.getTime() || 0;
+          return {
+            _localDate: toLocalDateString(rawTgl),
+            _noUrut: parseInt(rawNo) || 0,
+            _nomor: rawNomor,
+            _suffix: getSuffix(rawNomor),
+            _time: time
+          };
+        });
 
-            if (previousRecords.length > 0) {
-              const baseRecord = previousRecords[0];
-              const baseNoUrut = parseInt(baseRecord.no_urut) || 0;
-              // Check if THIS base number already has suffixes anywhere else (to avoid global conflict)
-              const sameNoUrutRecords = allData.filter(item => (parseInt(item.no_urut) || 0) === baseNoUrut);
-              const existingSuffixes = sameNoUrutRecords
-                .map(item => item.nomor_surat.match(/[a-z]+$/))
-                .filter(match => match)
-                .map(match => match[0]);
-              
-              const nextSuffix = existingSuffixes.length === 0 ? 'a' : getSuffixFromNumber(existingSuffixes.sort().pop().charCodeAt(0) - 97 + 1);
-              return { noUrut: baseNoUrut, suffix: nextSuffix };
-            }
-          }
+        const selectedTime = safeParseDate(selectedDate)?.getTime() || 0;
+        const sameDayRecords = allData.filter(item => item._localDate === normalizedSelected);
+        const maxOnDay = sameDayRecords.length > 0 ? Math.max(...sameDayRecords.map(i => i._noUrut)) : 0;
+        const systemMax = allData.length > 0 ? Math.max(...allData.map(i => i._noUrut)) : 0;
+        const allSystemNumbers = allData.map(i => i._noUrut);
 
-          // 3. Forward dating or absolute start
-          const maxNoUrutOverall = Math.max(...allData.map(item => parseInt(item.no_urut) || 0));
-          return { noUrut: maxNoUrutOverall + 1, suffix: '' };
+        let baseNoUrut = 0;
+        let forceSuffix = false;
+
+        // Case A: Day Already Has Records
+        if (sameDayRecords.length > 0) {
+           const nextConsecutive = maxOnDay + 1;
+           const isNextAvailableGap = (nextConsecutive < systemMax && !allSystemNumbers.includes(nextConsecutive));
+           const latestTimeInSystem = Math.max(...allData.filter(i => i._time > 0).map(i => i._time));
+           
+           if (selectedTime >= latestTimeInSystem || isNextAvailableGap) {
+              baseNoUrut = nextConsecutive;
+              forceSuffix = false;
+              console.log(`[TRACE] v34.2: Same-day Sequence Priority (Next: ${baseNoUrut})`);
+           } else {
+              baseNoUrut = maxOnDay;
+              forceSuffix = true;
+              console.log(`[TRACE] v34.2: Sequence Blocked -> Suffix Mode (Base: ${baseNoUrut})`);
+           }
+        } 
+        // Case B: New Day (Empty)
+        else {
+           const prevData = allData.filter(i => i._time > 0 && i._time < selectedTime);
+           const latestPrevTime = prevData.length > 0 ? Math.max(...prevData.map(i => i._time)) : 0;
+           const maxOnLatestPrevDay = prevData.length > 0 ? Math.max(...prevData.filter(i => i._time === latestPrevTime).map(i => i._noUrut)) : 0;
+
+           if (latestPrevTime === 0) {
+              let firstMissing = 1;
+              while(allSystemNumbers.includes(firstMissing)) firstMissing++;
+              baseNoUrut = firstMissing;
+              console.log(`[TRACE] v34.2: Earliest Missing Fill (Next: ${baseNoUrut})`);
+           } else {
+              const daysDiff = Math.round((selectedTime - latestPrevTime) / (1000 * 60 * 60 * 24));
+              if (daysDiff > 1) {
+                 baseNoUrut = maxOnLatestPrevDay + 4;
+                 console.log(`[TRACE] v34.2: Jump Growth over ${daysDiff} days (Next: ${baseNoUrut})`);
+              } else {
+                 baseNoUrut = maxOnLatestPrevDay + 1;
+                 console.log(`[TRACE] v34.2: Continuous Next Day (Next: ${baseNoUrut})`);
+              }
+           }
         }
-      } catch (error) {
-        console.error('Error getting next no urut:', error);
+
+        let finalSuffix = '';
+        if (forceSuffix) {
+           const sameBaseRecords = allData.filter(i => i._noUrut === baseNoUrut);
+           const existingSuffixes = sameBaseRecords.map(i => i._suffix).filter(s => s !== '');
+           let sIdx = 1;
+           while (true) {
+             let candidate = getSuffixFromNumber(sIdx);
+             if (!existingSuffixes.includes(candidate)) {
+               finalSuffix = candidate;
+               break;
+             }
+             sIdx++;
+             if (sIdx > 1000) break;
+           }
+        }
+
+        return { noUrut: baseNoUrut, suffix: finalSuffix };
+      } catch (err) { 
+        console.error('Logic Fail:', err); 
+        return { noUrut: 1, suffix: '' };
       }
-      return { noUrut: 1, suffix: '' };
     }
 
-    // Generate nomor surat
     async function generateNomorSurat(kodeKlasifikasi, selectedDate) {
-      const { noUrut, suffix } = await getNextNoUrut(selectedDate);
+      const response = await fetch(`${config.script_url}?action=getRekap`);
+      const result = await response.json();
+      const freshData = (result.status === 'success') ? result.data : [];
+      const { noUrut, suffix } = getNextNoUrut(selectedDate, freshData);
       const nomorSurat = `${config.kode_wilayah}.${config.kode_satker}.${kodeKlasifikasi}-${noUrut}${suffix}`;
-      
       return { nomorSurat, noUrut, suffix };
     }
 
@@ -627,6 +743,7 @@
         
         e.target.reset();
         setDefaultDate();
+        setSenderName();
         
       } catch (error) {
         console.error('Error:', error);
@@ -682,39 +799,40 @@
       }
     });
 
+    // Auto-populate sender name based on access code
+    function setSenderName() {
+      let accessCode = sessionStorage.getItem('accessCode');
+      const userDataStr = sessionStorage.getItem('userData');
+      
+      // Fallback: If accessCode isn't in storage yet, derive it from userData role
+      if (!accessCode && userDataStr) {
+        try {
+          const userData = JSON.parse(userDataStr);
+          if (userData.role === 'Tata Usaha') accessCode = 'TU123';
+          else if (userData.role === 'KAMTIB') accessCode = 'KAMTIB123';
+          else if (userData.role === 'AO') accessCode = 'AO123';
+          else if (userData.role === 'Pembinaan') accessCode = 'PEMBINAAN123';
+        } catch (e) {}
+      }
+
+      const senderInput = document.getElementById('nama-pengirim');
+      const mapping = {
+        'TU123': 'Tata Usaha',
+        'KAMTIB123': 'Keamanan & Ketertiban',
+        'AO123': 'Admisi & Oreintasi',
+        'PEMBINAAN123': 'Pembinaan'
+      };
+
+      if (accessCode && mapping[accessCode]) {
+        senderInput.value = mapping[accessCode];
+      }
+      senderInput.readOnly = true; 
+    }
+
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
       setDefaultDate();
-      // Auto-populate sender name based on access code
-      function setSenderName() {
-        let accessCode = sessionStorage.getItem('accessCode');
-        const userDataStr = sessionStorage.getItem('userData');
-        
-        // Fallback: If accessCode isn't in storage yet, derive it from userData role
-        if (!accessCode && userDataStr) {
-          try {
-            const userData = JSON.parse(userDataStr);
-            if (userData.role === 'Tata Usaha') accessCode = 'TU123';
-            else if (userData.role === 'KAMTIB') accessCode = 'KAMTIB123';
-            else if (userData.role === 'AO') accessCode = 'AO123';
-            else if (userData.role === 'Pembinaan') accessCode = 'PEMBINAAN123';
-          } catch (e) {}
-        }
-
-        const senderInput = document.getElementById('nama-pengirim');
-        const mapping = {
-          'TU123': 'Tata Usaha',
-          'KAMTIB123': 'Keamanan & Ketertiban',
-          'AO123': 'Admisi & Oreintasi',
-          'PEMBINAAN123': 'Pembinaan'
-        };
-
-        if (accessCode && mapping[accessCode]) {
-          senderInput.value = mapping[accessCode];
-        }
-        senderInput.readOnly = true; 
-      }
-      setSenderName(); // Call the function after defining it
+      setSenderName();
       
       // Update User Profile Display
       const userDataStr = sessionStorage.getItem('userData');
@@ -733,13 +851,22 @@
         }
       }
 
-      fetchKodeKlasifikasi();
-      fetchHistory();
+      // Sequence fetches with short delay to prevent simultaneous request issues
+      setTimeout(async () => {
+        await fetchKodeKlasifikasi();
+        setTimeout(async () => {
+          await fetchHistory();
+        }, 300);
+      }, 100);
 
-      // Mark date as manually set if user changes it
-      document.getElementById('tanggal').addEventListener('change', (e) => {
+      // Update numbering when date changes
+      const dateInput = document.getElementById('tanggal');
+      dateInput.addEventListener('change', (e) => {
         e.target.dataset.manualSet = "true";
+        updateNextNumber(); // Update badge when date is changed manually
       });
+      
+      updateNextNumber(); // Initial update
     });
    // Logout functionality
    document.getElementById('logoutBtn').addEventListener('click', () => {
@@ -747,13 +874,6 @@
      sessionStorage.removeItem('userData');
      window.location.href = 'index.html';
    });
-
-   // Session check
-   window.addEventListener('DOMContentLoaded', () => {
-     if (sessionStorage.getItem('isLoggedIn') !== 'true') {
-       window.location.href = 'index.html';
-     }
-    });
     
     // Download Rekap PDF function
     window.downloadRekapPDF = function() {
@@ -821,8 +941,14 @@
           item.nomor_surat
         ]);
         
+        // Manual centering calculation
+        const pageWidth = doc.internal.pageSize.getWidth(); // 297mm
+        const tableWidth = 230; // 10+35+30+50+15+20+30+40
+        const marginLeft = (pageWidth - tableWidth) / 2;
+        
         doc.autoTable({
           startY: 40,
+          margin: { left: marginLeft },
           head: [['No', 'Tanggal', 'Pengirim', 'Perihal', 'Sifat', 'Klasifikasi', 'Tujuan', 'Nomor Surat']],
           body: tableBody,
           theme: 'striped',

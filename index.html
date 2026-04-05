@@ -3,7 +3,7 @@
  <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sistem Penomoran Surat</title>
+  <title>Sistem Penomoran Surat Otomatis</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script src="/_sdk/element_sdk.js"></script>
   <style>
@@ -20,7 +20,7 @@
     }
 
     body {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+      background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 50%, #3d7ab5 100%);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -59,7 +59,7 @@
     }
 
     .login-left {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
       padding: 60px 40px;
       display: flex;
       flex-direction: column;
@@ -99,9 +99,9 @@
     }
 
     .left-icon {
-      font-size: 64px;
-      margin-bottom: 20px;
+      margin-bottom: 24px;
       animation: float 3s ease-in-out infinite;
+      filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.2));
     }
 
     @keyframes float {
@@ -173,7 +173,7 @@
 
     .app-subtitle {
       font-size: 16px;
-      color: #667eea;
+      color: #2d5a87;
       margin-bottom: 36px;
       font-weight: 600;
       text-align: center;
@@ -203,9 +203,9 @@
 
     .form-input:focus {
       outline: none;
-      border-color: #667eea;
+      border-color: #2d5a87;
       background: white;
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      box-shadow: 0 0 0 3px rgba(45, 90, 135, 0.1);
     }
 
     .form-input::placeholder {
@@ -215,7 +215,7 @@
     .login-btn {
       width: 100%;
       padding: 14px 20px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #2d5a87 0%, #1e3a5f 100%);
       color: white;
       border: none;
       border-radius: 10px;
@@ -224,12 +224,12 @@
       cursor: pointer;
       transition: all 0.3s ease;
       margin-top: 8px;
-      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+      box-shadow: 0 8px 20px rgba(45, 90, 135, 0.3);
     }
 
     .login-btn:hover {
       transform: translateY(-2px);
-      box-shadow: 0 12px 28px rgba(102, 126, 234, 0.4);
+      box-shadow: 0 12px 28px rgba(45, 90, 135, 0.4);
     }
 
     .login-btn:active {
@@ -264,14 +264,14 @@
     }
 
     .forgot-link {
-      color: #667eea;
+      color: #2d5a87;
       text-decoration: none;
       font-weight: 600;
       transition: color 0.3s ease;
     }
 
     .forgot-link:hover {
-      color: #764ba2;
+      color: #1e3a5f;
     }
 
     .signup-link {
@@ -352,9 +352,6 @@
   <div class="login-container">
    <div class="login-left">
     <div class="left-content">
-     <div class="left-icon">
-      📋
-     </div>
      <h1 class="left-title">Sistem Penomoran Surat Otomatis</h1>
      <p class="left-subtitle">LAPAS PEREMPUAN KELAS III TERNATE</p>
      <div class="left-feature">
@@ -369,8 +366,11 @@
     </div>
    </div>
    <div class="login-right">
-    <div class="login-card">
-     <h2 class="app-title">SPSO</h2>
+     <div class="login-card">
+      <div class="mb-6 flex justify-center">
+        <img src="logo-kemenimpas.png" alt="Logo Kemenimpas" class="w-28 h-28 object-contain filter drop-shadow-md">
+      </div>
+      <h2 class="app-title">SPSO</h2>
      <p class="app-subtitle"><strong>SISTEM PENOMORAN SURAT OTOMATIS LAPAS PEREMPUAN TERNATE</strong></p>
      <div class="error-message" id="errorMsg"></div>
      <div class="success-message" id="successMsg"></div>
@@ -434,9 +434,9 @@
           sessionStorage.setItem('accessCode', code);
           sessionStorage.setItem('userData', JSON.stringify(userData));
 
-          // Redirect to BERANDA.html after 1.5 seconds
+          // Redirect to beranda.html after 1.5 seconds
           setTimeout(() => {
-            window.location.href = 'BERANDA.html';
+            window.location.href = 'beranda.html';
           }, 1500);
         } else {
           showError('Kode akses salah atau tidak terdaftar');
@@ -478,7 +478,7 @@
             <p class="text-gray-600 mb-8">Anda berhasil masuk sebagai <span class="font-bold text-[#667eea]">${role}</span>.</p>
             
             <div class="space-y-4">
-              <a href="BERANDA.html" class="block w-full bg-gradient-to-r from-[#667eea] to-[#764ba2] text-white font-semibold py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 no-underline">
+              <a href="beranda.html" class="block w-full bg-gradient-to-r from-[#667eea] to-[#764ba2] text-white font-semibold py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 no-underline">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
                 </svg>
