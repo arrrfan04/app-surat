@@ -581,49 +581,60 @@
         const selectedTime = safeParseDate(selectedDate)?.getTime() || 0;
         const sameDayRecords = allData.filter(item => item._localDate === normalizedSelected);
         const maxOnDay = sameDayRecords.length > 0 ? Math.max(...sameDayRecords.map(i => i._noUrut)) : 0;
+        
+        // Find latest date in system
+        const systemDates = allData.filter(i => i._time > 0).map(i => ({ time: i._time, date: i._localDate }));
+        const latestTimeInSystem = systemDates.length > 0 ? Math.max(...systemDates.map(d => d.time)) : 0;
         const systemMax = allData.length > 0 ? Math.max(...allData.map(i => i._noUrut)) : 0;
-        const allSystemNumbers = allData.map(i => i._noUrut);
 
         let baseNoUrut = 0;
         let forceSuffix = false;
 
-        // Case A: Day Already Has Records
-        if (sameDayRecords.length > 0) {
-           const nextConsecutive = maxOnDay + 1;
-           const isNextAvailableGap = (nextConsecutive < systemMax && !allSystemNumbers.includes(nextConsecutive));
-           const latestTimeInSystem = Math.max(...allData.filter(i => i._time > 0).map(i => i._time));
-           
-           if (selectedTime >= latestTimeInSystem || isNextAvailableGap) {
-              baseNoUrut = nextConsecutive;
-              forceSuffix = false;
-              console.log(`[TRACE] v34.2: Same-day Sequence Priority (Next: ${baseNoUrut})`);
-           } else {
-              baseNoUrut = maxOnDay;
-              forceSuffix = true;
-              console.log(`[TRACE] v34.2: Sequence Blocked -> Suffix Mode (Base: ${baseNoUrut})`);
-           }
+        // CASE 1: Future or Present Day (New Day compared to records)
+        if (selectedTime > latestTimeInSystem) {
+            const daysDiff = Math.abs(Math.round((selectedTime - latestTimeInSystem) / (24 * 3600 * 1000)));
+            const jump = (daysDiff > 0 ? daysDiff : 0) + 2; // Jump = daysDiff + 2
+            baseNoUrut = systemMax + jump;
+            console.log(`[TRACE] v37: New Day Jump (${daysDiff} days) -> ${baseNoUrut}`);
         } 
-        // Case B: New Day (Empty)
+        // CASE 2: Current Latest Day (Adding more to the newest day)
+        else if (selectedTime === latestTimeInSystem) {
+            baseNoUrut = maxOnDay + 1;
+            console.log(`[TRACE] v37: Adding to Latest Day -> ${baseNoUrut}`);
+        }
+        // CASE 3: Backdate (Selecting a date older than latest records)
         else {
-           const prevData = allData.filter(i => i._time > 0 && i._time < selectedTime);
-           const latestPrevTime = prevData.length > 0 ? Math.max(...prevData.map(i => i._time)) : 0;
-           const maxOnLatestPrevDay = prevData.length > 0 ? Math.max(...prevData.filter(i => i._time === latestPrevTime).map(i => i._noUrut)) : 0;
+            // Find the closest existing day after selectedDate (T_next)
+            const laterDates = allData.filter(i => i._time > selectedTime);
+            const tNextTime = Math.min(...laterDates.map(i => i._time));
+            const recordsOnTNext = allData.filter(i => i._time === tNextTime);
+            const nLimit = Math.min(...recordsOnTNext.map(i => i._noUrut));
+            
+            // Find the closest existing day before T_next (T_prev_of_T_next)
+            const prevRecords = allData.filter(i => i._time < tNextTime);
+            const tPrevToTNextTime = Math.max(...prevRecords.map(i => i._time));
+            const tPrevToTNextDate = toLocalDateString(tPrevToTNextTime);
+            
+            const daysDiffGap = Math.abs(Math.round((tNextTime - tPrevToTNextTime) / (24 * 3600 * 1000)));
+            const numReserved = (daysDiffGap > 0 ? daysDiffGap : 0) + 1;
+            const gapStart = nLimit - numReserved;
+            const gapEnd = nLimit - 1;
 
-           if (latestPrevTime === 0) {
-              let firstMissing = 1;
-              while(allSystemNumbers.includes(firstMissing)) firstMissing++;
-              baseNoUrut = firstMissing;
-              console.log(`[TRACE] v34.2: Earliest Missing Fill (Next: ${baseNoUrut})`);
-           } else {
-              const daysDiff = Math.round((selectedTime - latestPrevTime) / (1000 * 60 * 60 * 24));
-              if (daysDiff > 1) {
-                 baseNoUrut = maxOnLatestPrevDay + 4;
-                 console.log(`[TRACE] v34.2: Jump Growth over ${daysDiff} days (Next: ${baseNoUrut})`);
-              } else {
-                 baseNoUrut = maxOnLatestPrevDay + 1;
-                 console.log(`[TRACE] v34.2: Continuous Next Day (Next: ${baseNoUrut})`);
-              }
-           }
+            // Determine if we start from the beginning of the gap or from the date's max
+            let candidateBase = (normalizedSelected === tPrevToTNextDate) ? maxOnDay : (maxOnDay || (gapStart - 1));
+            const candidate = candidateBase + 1;
+
+            if (candidate < gapStart) {
+                baseNoUrut = candidate;
+                console.log(`[TRACE] v37: Backdate Fill (Before Gap) -> ${baseNoUrut}`);
+            } else if (candidate <= gapEnd) {
+                baseNoUrut = candidate;
+                console.log(`[TRACE] v37: Backdate Gap-Fill -> ${baseNoUrut}`);
+            } else {
+                baseNoUrut = gapEnd;
+                forceSuffix = true;
+                console.log(`[TRACE] v37: Backdate Suffix Mode (Base: ${baseNoUrut})`);
+            }
         }
 
         let finalSuffix = '';
