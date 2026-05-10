@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sistem Penomoran Surat Otomatis</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
-  <script src="/_sdk/element_sdk.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -79,7 +78,6 @@
     }
   </style>
   <style>body { box-sizing: border-box; }</style>
-  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
  </head>
  <body class="h-full gradient-bg">
   <div id="app-container" class="h-full overflow-auto">
@@ -89,7 +87,7 @@
     <!-- Header -->
     <header class="relative flex flex-col items-center mb-6 md:mb-8 text-center">
       <!-- User Info & Logout -->
-      <div class="w-full flex justify-end md:absolute md:top-0 md:right-0 mb-4 md:mb-0">
+      <div class="w-full flex justify-end md:absolute md:top-0 md:left-0 md:right-0 mb-4 md:mb-0">
         <div class="flex flex-col items-end gap-2">
           <div id="user-profile" class="bg-white/10 px-3 py-1.5 rounded-lg backdrop-blur-sm border border-white/20 text-right hidden">
             <p id="display-name" class="text-white text-xs font-bold leading-tight">Admin</p>
@@ -108,8 +106,8 @@
        <div class="w-12 h-12 md:w-14 md:h-14 bg-white rounded-xl flex items-center justify-center shadow-lg overflow-hidden">
         <img src="logo-kemenimpas.png" alt="Logo Kemenimpas" class="w-10 h-10 md:w-12 md:h-12 object-contain">
        </div>
-       <h1 id="app-title" class="text-2xl md:text-3xl lg:text-4xl font-bold text-white drop-shadow-lg">Sistem Nomor Otomatis</h1>
-       <p class="text-blue-100 mt-2 text-sm md:text-base">Terintegrasi dengan Penomoran Surat Tata Usaha</p>
+       <h1 id="app-title" class="text-2xl md:text-3xl lg:text-4xl font-bold text-white drop-shadow-lg">Registrasi Surat Keluar</h1>
+       <p class="text-blue-100 mt-2 text-sm md:text-base">Pencatatan Surat Keluar Lapas Perempuan Ternate</p>
      </div>
     </header><!-- Main Card -->
     <!-- Main Content Area -->
@@ -169,7 +167,7 @@
           <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
             <svg class="w-5 h-5 text-[#2d5a87]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg> Riwayat Surat Terakhir
+            </svg> Riwayat Surat Keluar
           </h2>
           <button id="btn-download-rekap" onclick="downloadRekapPDF()" class="bg-[#2d5a87] hover:bg-[#1e3a5f] text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 shadow-sm">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -194,12 +192,11 @@
    </div>
   </div>
   <script>
-    // Default Configuration
     const defaultConfig = {
       app_title: 'Sistem Penomoran Surat Otomatis',
       kode_wilayah: 'WP.29',
       kode_satker: 'PAS.12',
-      script_url: 'https://script.google.com/macros/s/AKfycbwfHTx-y5wXWVT--sjC-1fBg7Kjgto3aUUZ2SF8GsnkKDzjOBER_ukm208mlVkqiUi8/exec'
+      script_url: 'https://script.google.com/macros/s/AKfycbx9IE5I5SgewMlWO_cNf3ayO7qnTJwiVVrjeQFf1K6a2ObiDW2n_Hrun8Z92qcYJY4/exec'
     };
 
     // IMPORTANT: Check session first before anything else to prevent fetch cancellations
@@ -213,29 +210,6 @@
     let kodeKlasifikasiHash = null;
     let kodePollingInterval = null;
     let currentHistoryData = []; // Store fetched history data
-
-    // Initialize Element SDK
-    if (window.elementSdk) {
-      window.elementSdk.init({
-        defaultConfig,
-        onConfigChange: async (newConfig) => {
-          config = { ...defaultConfig, ...newConfig };
-          updateUI();
-        },
-        mapToCapabilities: () => ({
-          recolorables: [],
-          borderables: [],
-          fontEditable: undefined,
-          fontSizeable: undefined
-        }),
-        mapToEditPanelValues: (cfg) => new Map([
-          ['app_title', cfg.app_title || defaultConfig.app_title],
-          ['kode_wilayah', cfg.kode_wilayah || defaultConfig.kode_wilayah],
-          ['kode_satker', cfg.kode_satker || defaultConfig.kode_satker],
-          ['script_url', cfg.script_url || defaultConfig.script_url]
-        ])
-      });
-    }
 
     // Update UI based on config
     function updateUI() {
@@ -321,10 +295,7 @@
       loadingEl.classList.remove('hidden');
       
       try {
-        const response = await fetch(`${config.script_url}?action=getKode`, {
-          method: 'GET',
-          cache: 'no-cache'
-        });
+        const response = await fetch(`${config.script_url}?action=getKode&type=keluar`);
         
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         
@@ -356,10 +327,7 @@
       
       kodePollingInterval = setInterval(async () => {
         try {
-          const response = await fetch(`${config.script_url}?action=getKode`, {
-            method: 'GET',
-            cache: 'no-cache'
-          });
+          const response = await fetch(`${config.script_url}?action=getKode&type=keluar`);
           const result = await response.json();
           
           if (result.status === 'success') {
@@ -397,7 +365,7 @@
       if (!config.script_url) return;
       
       try {
-        const response = await fetch(`${config.script_url}?action=getRekap`);
+        const response = await fetch(`${config.script_url}?action=getRekap&type=keluar`);
         const result = await response.json();
         
         if (result.status === 'success' && result.data.length > 0) {
@@ -486,21 +454,24 @@
       const displayData = [...data];
       
       container.innerHTML = '';
-      displayData.forEach((item, index) => {
+      displayData.forEach((item) => {
+        // v41: Resilience to trailing underscores in spreadsheet headers
+        const getVal = (k) => item[k] !== undefined ? item[k] : (item[k+'_'] !== undefined ? item[k+'_'] : '-');
+        
         const itemEl = document.createElement('div');
         itemEl.className = 'bg-gray-50 rounded-lg p-4 border border-gray-100 hover:shadow-md transition-shadow';
         itemEl.innerHTML = `
           <div class="flex justify-between items-start gap-4">
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 mb-1">
-                <span class="px-2 py-0.5 bg-blue-100 text-blue-800 text-[10px] font-bold rounded-full uppercase">${item.sifat_surat}</span>
-                <p class="font-bold text-[#1e3a5f] text-sm truncate">${item.nomor_surat}</p>
+                <span class="px-2 py-0.5 bg-blue-100 text-blue-800 text-[10px] font-bold rounded-full uppercase">${getVal('sifat_surat')}</span>
+                <p class="font-bold text-[#1e3a5f] text-sm truncate">${getVal('nomor_surat')}</p>
               </div>
-              <p class="text-xs font-semibold text-gray-800 mb-1 leading-tight">${item.perihal}</p>
+              <p class="text-xs font-semibold text-gray-800 mb-1 leading-tight">${getVal('perihal')}</p>
               <div class="flex items-center gap-2 text-[10px] text-gray-500">
-                <span>📅 ${formatTanggal(item.tanggal)}</span>
+                <span>📅 ${formatTanggal(getVal('tanggal'))}</span>
                 <span>•</span>
-                <span>👤 ${item.nama_pengirim}</span>
+                <span>👤 ${getVal('nama_pengirim')}</span>
               </div>
             </div>
           </div>
@@ -663,7 +634,7 @@
     }
 
     async function generateNomorSurat(kodeKlasifikasi, selectedDate) {
-      const response = await fetch(`${config.script_url}?action=getRekap`);
+      const response = await fetch(`${config.script_url}?action=getRekap&type=keluar`);
       const result = await response.json();
       const freshData = (result.status === 'success') ? result.data : [];
       const { noUrut, suffix } = getNextNoUrut(selectedDate, freshData);
@@ -681,6 +652,7 @@
       try {
         const url = new URL(config.script_url);
         url.searchParams.append('action', 'saveSurat');
+        url.searchParams.append('type', 'keluar');
         url.searchParams.append('no_urut', data.no_urut ? String(data.no_urut) : '');
         url.searchParams.append('tanggal', data.tanggal || '');
         url.searchParams.append('nama_pengirim', data.nama_pengirim || '');
@@ -690,17 +662,17 @@
         url.searchParams.append('tujuan_surat', data.tujuan_surat || '');
         url.searchParams.append('nomor_surat', data.nomor_surat || '');
         
-        const response = await fetch(url.toString(), {
+        console.log('Attempting to save to:', url.toString());
+
+        await fetch(url.toString(), {
           method: 'GET',
-          mode: 'no-cors',
-          cache: 'no-cache'
-        });
-        
-        showToast('✓ Surat sedang disimpan...', 'success');
+          mode: 'no-cors'
+        }).catch(err => console.error('Fetch network error (expected in no-cors):', err));
         
         setTimeout(() => {
           fetchHistory();
-        }, 1000);
+          showToast('✓ Data Berhasil Disimpan', 'success');
+        }, 2000);
         
         return true;
       } catch (error) {
@@ -902,11 +874,11 @@
         // Header
         doc.setFontSize(18);
         doc.setTextColor(30, 58, 95);
-        doc.text('REKAPITULASI PENOMORAN SURAT', 148, 20, { align: 'center' });
+        doc.text('REKAPAN SURAT KELUAR', 148, 15, { align: 'center' });
+        doc.setFontSize(14);
+        doc.text('LAPAS PEREMPUAN KELAS III TERNATE', 148, 25, { align: 'center' });
         
-        doc.setFontSize(10);
-        doc.setTextColor(100);
-        doc.text('Lapas Perempuan Kelas III Ternate', 148, 28, { align: 'center' });
+        // doc.text('Lapas Perempuan Kelas III Ternate', 148, 28, { align: 'center' });
         
         // Data Sorting: Priority by Letter Number and Suffix (1, 1a, 1b, 2...)
         const sortedData = [...currentHistoryData].sort((a, b) => {
@@ -943,16 +915,21 @@
         
         // Content Table
         // Column Order: No, Tanggal, Nama Pengirim, Perihal, Sifat Surat, Kode Klasifikasi, Tujuan Surat, Nomor Surat
-        const tableBody = sortedData.map((item, index) => [
-          index + 1,
-          formatTanggal(item.tanggal),
-          item.nama_pengirim,
-          item.perihal,
-          item.sifat_surat,
-          item.kode_klasifikasi,
-          item.tujuan_surat,
-          item.nomor_surat
-        ]);
+        const tableBody = sortedData.map((item, index) => {
+          // v41: Resilience to trailing underscores in spreadsheet headers
+          const getVal = (k) => item[k] !== undefined ? item[k] : (item[k+'_'] !== undefined ? item[k+'_'] : '-');
+          
+          return [
+            index + 1,
+            formatTanggal(getVal('tanggal')),
+            getVal('nama_pengirim'),
+            getVal('perihal'),
+            getVal('sifat_surat'),
+            getVal('kode_klasifikasi'),
+            getVal('tujuan_surat'),
+            getVal('nomor_surat')
+          ];
+        });
         
         // Manual centering calculation
         const pageWidth = doc.internal.pageSize.getWidth(); // 297mm
@@ -960,7 +937,7 @@
         const marginLeft = (pageWidth - tableWidth) / 2;
         
         doc.autoTable({
-          startY: 40,
+          startY: 35,
           margin: { left: marginLeft },
           head: [['No', 'Tanggal', 'Pengirim', 'Perihal', 'Sifat', 'Klasifikasi', 'Tujuan', 'Nomor Surat']],
           body: tableBody,
@@ -988,7 +965,7 @@
         
         // Generate Data URI (Bypasses some blob renaming issues)
         const dataUri = doc.output('datauristring');
-        const fileName = "REKAP.pdf";
+        const fileName = "REKAP_SURAT_KELUAR.pdf";
         
         const link = document.createElement('a');
         link.href = dataUri;

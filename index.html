@@ -123,20 +123,42 @@
       margin-bottom: 30px;
     }
 
-    .left-feature {
-      font-size: 13px;
-      opacity: 0.85;
-      margin: 12px 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
+    .left-stat-container {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      width: 100%;
+      margin-top: 20px;
     }
 
-    .left-feature::before {
-      content: '✓';
-      font-weight: bold;
-      font-size: 18px;
+    .stat-card {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(5px);
+      border-radius: 16px;
+      padding: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      transition: all 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .stat-card:hover {
+      background: rgba(255, 255, 255, 0.15);
+      transform: translateY(-4px);
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      opacity: 0.8;
     }
 
     .login-right {
@@ -352,18 +374,20 @@
   <div class="login-container">
    <div class="login-left">
     <div class="left-content">
-     <h1 class="left-title">Sistem  Nomor Otomatis</h1>
-     <p class="left-subtitle">LAPAS PEREMPUAN KELAS III TERNATE</p>
-     <div class="left-feature">
-      Penomoran Otomatis
+      <h1 class="left-title">Sistem Nomor Otomatis</h1>
+      <p class="left-subtitle">LAPAS PEREMPUAN KELAS III TERNATE</p>
+      
+      <div class="left-stat-container">
+        <div class="stat-card">
+          <span class="stat-value" id="count-masuk">...</span>
+          <span class="stat-label">Jumlah Surat Masuk</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-value" id="count-keluar">...</span>
+          <span class="stat-label">Jumlah Surat Keluar</span>
+        </div>
+      </div>
      </div>
-     <div class="left-feature">
-      Tracking Realtime
-     </div>
-     <div class="left-feature">
-      Laporan Lengkap
-     </div>
-    </div>
    </div>
    <div class="login-right">
      <div class="login-card">
@@ -379,6 +403,14 @@
           <label class="form-label" for="accessCode">Kode Akses</label>
           <input type="password" id="accessCode" class="form-input" placeholder="Masukkan kode akses" required>
         </div>
+        <div class="form-group">
+          <label class="form-label" for="pilihanSurat">Pilihan Surat</label>
+          <select id="pilihanSurat" class="form-input" required>
+            <option value="" disabled selected>-- Pilih Jenis Surat --</option>
+            <option value="surat_masuk">Surat Masuk</option>
+            <option value="surat_keluar">Surat Keluar</option>
+          </select>
+        </div>
         <button type="submit" class="login-btn" id="loginBtn">Masuk</button>
       </form>
      <div class="signup-link">
@@ -393,6 +425,31 @@
     const loginBtn = document.getElementById('loginBtn');
     const errorMsg = document.getElementById('errorMsg');
     const successMsg = document.getElementById('successMsg');
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwsZ95aLfHFXaA6m0NZFRHjxW_iF_6Aii1HkG6AdNElFDCzlHWJGdyk-y1rESG5QCpB/exec';
+
+    // Fetch Stats from History (Frontend Logic)
+    async function fetchStats() {
+      try {
+        // Fetch Masuk history and count
+        const respMasuk = await fetch(`${SCRIPT_URL}?action=getRekap&type=masuk`);
+        const jsonMasuk = await respMasuk.json();
+        
+        // Fetch Keluar history and count
+        const respKeluar = await fetch(`${SCRIPT_URL}?action=getRekap&type=keluar`);
+        const jsonKeluar = await respKeluar.json();
+
+        if (jsonMasuk.status === 'success') {
+          document.getElementById('count-masuk').textContent = jsonMasuk.data.length;
+        }
+        if (jsonKeluar.status === 'success') {
+          document.getElementById('count-keluar').textContent = jsonKeluar.data.length;
+        }
+      } catch (err) {
+        console.error('Stats fetch error:', err);
+        document.getElementById('count-masuk').textContent = '0';
+        document.getElementById('count-keluar').textContent = '0';
+      }
+    }
 
     // Access Code Mapping
     const ACCESS_CODES = {
@@ -427,16 +484,24 @@
 
         if (userData) {
           showSuccess('LOGIN BERHASIL!');
+          
+          // Capture choice BEFORE reset
+          const pilihan = document.getElementById('pilihanSurat').value;
           loginForm.reset();
 
           // Store login session
           sessionStorage.setItem('isLoggedIn', 'true');
           sessionStorage.setItem('accessCode', code);
           sessionStorage.setItem('userData', JSON.stringify(userData));
+          sessionStorage.setItem('lastChoice', pilihan);
 
-          // Redirect to beranda.html after 1.5 seconds
+          // Redirect based on selection after 1.5 seconds
           setTimeout(() => {
-            window.location.href = 'beranda.html';
+            if (pilihan === 'surat_masuk') {
+              window.location.href = 'surat_masuk.html';
+            } else {
+              window.location.href = 'surat_keluar.html';
+            }
           }, 1500);
         } else {
           showError('Kode akses salah atau tidak terdaftar');
@@ -460,9 +525,9 @@
       // Hide login container
       document.querySelector('.login-container').style.display = 'none';
       
-      const nama = userData?.nama || 'User';
-      const role = userData?.role || 'User';
-      
+      const lastChoice = sessionStorage.getItem('lastChoice');
+      const targetUrl = lastChoice === 'surat_masuk' ? 'surat_masuk.html' : 'surat_keluar.html';
+
       // Create and show dashboard
       const dashboard = document.createElement('div');
       dashboard.id = 'dashboard-view';
@@ -478,7 +543,7 @@
             <p class="text-gray-600 mb-8">Anda berhasil masuk sebagai <span class="font-bold text-[#667eea]">${role}</span>.</p>
             
             <div class="space-y-4">
-              <a href="beranda.html" class="block w-full bg-gradient-to-r from-[#667eea] to-[#764ba2] text-white font-semibold py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 no-underline">
+              <a href="${targetUrl}" class="block w-full bg-gradient-to-r from-[#667eea] to-[#764ba2] text-white font-semibold py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 no-underline">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
                 </svg>
@@ -505,6 +570,7 @@
 
     // Check if already logged in
     window.addEventListener('DOMContentLoaded', () => {
+      fetchStats(); // Update live counts on load
       if (sessionStorage.getItem('isLoggedIn') === 'true') {
         const userData = JSON.parse(sessionStorage.getItem('userData') || 'null');
         showDashboard(userData);
