@@ -144,7 +144,7 @@
               </div><!-- Submit Button --> <button type="submit" id="btn-generate" class="w-full btn-primary text-white font-semibold py-4 rounded-xl flex items-center justify-center gap-2">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg><span id="btn-text">Generate Nomor Surat</span> </button>
+                </svg><span id="btn-text">Ajukan Nomor Surat</span> </button>
             </form><!-- Result Section -->
             <div id="result-section" class="mt-6 hidden">
               <div class="result-box rounded-xl p-5">
@@ -450,28 +450,63 @@
         return;
       }
       
-      // User requested strictly "newest action first" at the top (LIFO)
-      const displayData = [...data];
+      const getVal = (item, k) => {
+        if (!item) return '-';
+        return item[k] !== undefined ? item[k] : (item[k+'_'] !== undefined ? item[k+'_'] : '-');
+      };
+
+      // Add original index for reliable latest-first sorting
+      const dataWithIndex = data.map((item, idx) => ({ ...item, _idx: idx }));
+
+      // Filter out pending requests if an approved version already exists in the list
+      const approvedKeys = new Set();
+      dataWithIndex.forEach(item => {
+        const noSurat = getVal(item, 'nomor_surat');
+        if (!noSurat.includes('Menunggu') && noSurat !== '-') {
+           const key = `${getVal(item, 'perihal')}|${getVal(item, 'tujuan_surat')}|${getVal(item, 'tanggal')}|${getVal(item, 'nama_pengirim')}`;
+           approvedKeys.add(key.toLowerCase());
+        }
+      });
+      
+      const filteredData = dataWithIndex.filter(item => {
+        const noSurat = getVal(item, 'nomor_surat');
+        if (noSurat.includes('Menunggu')) {
+           const key = `${getVal(item, 'perihal')}|${getVal(item, 'tujuan_surat')}|${getVal(item, 'tanggal')}|${getVal(item, 'nama_pengirim')}`;
+           return !approvedKeys.has(key.toLowerCase());
+        }
+        return true;
+      });
+
+      // Explicit Sort: Newest Date first, then Newest Index first
+      const displayData = filteredData.sort((a, b) => {
+        const timeA = safeParseDate(getVal(a, 'tanggal'))?.getTime() || 0;
+        const timeB = safeParseDate(getVal(b, 'tanggal'))?.getTime() || 0;
+        if (timeA !== timeB) return timeB - timeA;
+        return b._idx - a._idx;
+      });
       
       container.innerHTML = '';
       displayData.forEach((item) => {
-        // v41: Resilience to trailing underscores in spreadsheet headers
-        const getVal = (k) => item[k] !== undefined ? item[k] : (item[k+'_'] !== undefined ? item[k+'_'] : '-');
-        
+        const noSurat = getVal(item, 'nomor_surat');
+        const isApproved = !noSurat.includes('Menunggu') && noSurat !== '-';
+        const statusText = isApproved ? 'Disetujui' : 'Menunggu Persetujuan';
+        const statusColor = isApproved ? 'bg-green-100 text-green-700 border-green-200' : 'bg-yellow-100 text-yellow-700 border-yellow-200';
+
         const itemEl = document.createElement('div');
         itemEl.className = 'bg-gray-50 rounded-lg p-4 border border-gray-100 hover:shadow-md transition-shadow';
         itemEl.innerHTML = `
           <div class="flex justify-between items-start gap-4">
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 mb-1">
-                <span class="px-2 py-0.5 bg-blue-100 text-blue-800 text-[10px] font-bold rounded-full uppercase">${getVal('sifat_surat')}</span>
-                <p class="font-bold text-[#1e3a5f] text-sm truncate">${getVal('nomor_surat')}</p>
+                <span class="px-2 py-0.5 bg-blue-100 text-blue-800 text-[10px] font-bold rounded-full uppercase">${getVal(item, 'sifat_surat')}</span>
+                <span class="px-2 py-0.5 ${statusColor} text-[10px] font-bold rounded-full uppercase border">${statusText}</span>
               </div>
-              <p class="text-xs font-semibold text-gray-800 mb-1 leading-tight">${getVal('perihal')}</p>
+              <p class="font-bold text-[#1e3a5f] text-sm mb-1">${noSurat}</p>
+              <p class="text-xs font-semibold text-gray-800 mb-1 leading-tight">${getVal(item, 'perihal')}</p>
               <div class="flex items-center gap-2 text-[10px] text-gray-500">
-                <span>📅 ${formatTanggal(getVal('tanggal'))}</span>
+                <span>📅 ${formatTanggal(getVal(item, 'tanggal'))}</span>
                 <span>•</span>
-                <span>👤 ${getVal('nama_pengirim')}</span>
+                <span>👤 ${getVal(item, 'nama_pengirim')}</span>
               </div>
             </div>
           </div>
@@ -702,10 +737,11 @@
         const kodeKlasifikasi = formData.get('kode_klasifikasi');
         const tujuanSurat = formData.get('tujuan_surat');
         
-        const { nomorSurat, noUrut, suffix } = await generateNomorSurat(kodeKlasifikasi, tanggal);
+        // Instead of generating number, we set a pending placeholder
+        const nomorSurat = "(Menunggu Persetujuan Admin)";
         
         const saved = await saveSurat({
-          no_urut: noUrut,
+          no_urut: '', 
           tanggal: tanggal,
           nama_pengirim: namaPengirim,
           perihal: perihal,
@@ -713,7 +749,7 @@
           kode_klasifikasi: kodeKlasifikasi,
           tujuan_surat: tujuanSurat,
           nomor_surat: nomorSurat,
-          suffix: suffix
+          status: 'PENDING'
         });
         
         const resultSection = document.getElementById('result-section');
@@ -866,6 +902,17 @@
         showToast('Belum ada data untuk diunduh', 'error');
         return;
       }
+
+      // Filter out pending requests
+      const dataForPDF = currentHistoryData.filter(item => {
+        const noSurat = (item.nomor_surat || item.nomor_surat_ || '').toString();
+        return !noSurat.includes('Menunggu');
+      });
+
+      if (dataForPDF.length === 0) {
+        showToast('Tidak ada data yang disetujui untuk diunduh', 'error');
+        return;
+      }
       
       try {
         const { jsPDF } = window.jspdf;
@@ -878,10 +925,8 @@
         doc.setFontSize(14);
         doc.text('LAPAS PEREMPUAN KELAS III TERNATE', 148, 25, { align: 'center' });
         
-        // doc.text('Lapas Perempuan Kelas III Ternate', 148, 28, { align: 'center' });
-        
         // Data Sorting: Priority by Letter Number and Suffix (1, 1a, 1b, 2...)
-        const sortedData = [...currentHistoryData].sort((a, b) => {
+        const sortedData = [...dataForPDF].sort((a, b) => {
           // 1. Primary Sort: Letter Number (no_urut)
           const numA = parseInt(a.no_urut) || 0;
           const numB = parseInt(b.no_urut) || 0;

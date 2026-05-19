@@ -456,7 +456,8 @@
       'TU123': { nama: 'Petugas TU', role: 'Tata Usaha' },
       'KAMTIB123': { nama: 'Petugas KAMTIB', role: 'KAMTIB' },
       'AO123': { nama: 'Petugas AO', role: 'AO' },
-      'PEMBINAAN123': { nama: 'Petugas Pembinaan', role: 'Pembinaan' }
+      'PEMBINAAN123': { nama: 'Petugas Pembinaan', role: 'Pembinaan' },
+      'ADMIN123': { nama: 'Administrator', role: 'Admin' }
     };
 
     loginForm.addEventListener('submit', async function(e) {
@@ -478,15 +479,22 @@
       loginBtn.disabled = true;
       loginBtn.textContent = 'Memproses...';
 
-      // Simulate network delay for better UX
       setTimeout(() => {
         const userData = ACCESS_CODES[code];
 
         if (userData) {
+          const pilihan = document.getElementById('pilihanSurat').value;
+
+          // Admin restriction: only Surat Keluar
+          if (userData.role === 'Admin' && pilihan !== 'surat_keluar') {
+            showError('Akses Admin hanya diperbolehkan untuk Surat Keluar');
+            loginBtn.disabled = false;
+            loginBtn.textContent = 'Masuk';
+            return;
+          }
+
           showSuccess('LOGIN BERHASIL!');
           
-          // Capture choice BEFORE reset
-          const pilihan = document.getElementById('pilihanSurat').value;
           loginForm.reset();
 
           // Store login session
@@ -495,9 +503,11 @@
           sessionStorage.setItem('userData', JSON.stringify(userData));
           sessionStorage.setItem('lastChoice', pilihan);
 
-          // Redirect based on selection after 1.5 seconds
+          // Redirect based on selection and role
           setTimeout(() => {
-            if (pilihan === 'surat_masuk') {
+            if (userData.role === 'Admin') {
+              window.location.href = 'admin_keluar.html';
+            } else if (pilihan === 'surat_masuk') {
               window.location.href = 'surat_masuk.html';
             } else {
               window.location.href = 'surat_keluar.html';

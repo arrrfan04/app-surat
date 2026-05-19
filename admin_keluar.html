@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="id" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - Persetujuan Nomor Surat</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    .gradient-bg {
+      background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 50%, #3d7ab5 100%);
+    }
+    .btn-approve {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      transition: all 0.3s ease;
+    }
+    .btn-approve:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+    .loading-spinner {
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid #2d5a87;
+      border-radius: 50%;
+      width: 16px;
+      height: 16px;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+ </head>
+ <body class="h-full gradient-bg overflow-auto">
+  <div class="min-h-full p-4 md:p-6 lg:p-8">
+    <header class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg">
+          <img src="logo-kemenimpas.png" alt="Logo" class="w-10 h-10 object-contain">
+        </div>
+        <div class="text-left">
+          <h1 class="text-2xl font-bold text-white">Panel Admin SINOTIS</h1>
+          <p class="text-blue-100 text-sm">Persetujuan Penomoran Surat Keluar</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="bg-white/10 px-4 py-2 rounded-lg border border-white/20 text-right">
+          <p class="text-white text-xs font-bold">Administrator</p>
+          <p class="text-blue-200 text-[10px]">Lapas Perempuan Ternate</p>
+        </div>
+        <button id="logoutBtn" class="bg-red-500/20 hover:bg-red-500/40 text-white border border-red-500/50 px-4 py-2 rounded-lg text-sm font-semibold transition-all">
+          Logout
+        </button>
+      </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto space-y-6">
+      <!-- Pending Requests Section -->
+      <section class="glass-card rounded-2xl shadow-2xl overflow-hidden">
+        <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+          <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <span class="flex h-3 w-3 relative">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-3 w-3 bg-yellow-500"></span>
+            </span>
+            Menunggu Persetujuan
+          </h2>
+          <button id="refreshBtn" class="text-sm text-blue-600 font-semibold hover:underline flex items-center gap-1">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+            Refresh
+          </button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left">
+            <thead class="bg-gray-50 text-xs uppercase text-gray-500 font-bold">
+              <tr>
+                <th class="px-6 py-4">Tanggal</th>
+                <th class="px-6 py-4">Pengirim</th>
+                <th class="px-6 py-4">Perihal</th>
+                <th class="px-6 py-4">Tujuan</th>
+                <th class="px-6 py-4 text-center">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="pending-table-body" class="divide-y divide-gray-100">
+              <tr>
+                <td colspan="5" class="px-6 py-8 text-center text-gray-400">Memuat data pengajuan...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- All History Section -->
+      <section class="glass-card rounded-2xl shadow-xl overflow-hidden">
+        <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+          <h2 class="text-lg font-bold text-gray-800">Riwayat Semua Surat</h2>
+          <span id="total-count" class="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded-full border border-blue-100">Total: -</span>
+        </div>
+        <div class="max-h-[500px] overflow-auto">
+          <table class="w-full text-left">
+            <thead class="bg-gray-50 text-xs uppercase text-gray-500 font-bold sticky top-0">
+              <tr>
+                <th class="px-6 py-4">Status</th>
+                <th class="px-6 py-4">Nomor Surat</th>
+                <th class="px-6 py-4">Perihal</th>
+                <th class="px-6 py-4">Tanggal</th>
+              </tr>
+            </thead>
+            <tbody id="history-table-body" class="divide-y divide-gray-100">
+              <!-- Filled by JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast-container" class="fixed top-4 right-4 z-50"></div>
+
+  <script>
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx9IE5I5SgewMlWO_cNf3ayO7qnTJwiVVrjeQFf1K6a2ObiDW2n_Hrun8Z92qcYJY4/exec';
+    const CONFIG = {
+      kode_wilayah: 'WP.29',
+      kode_satker: 'PAS.12'
+    };
+
+    let currentData = [];
+
+    function getVal(item, k) {
+      if (!item) return '-';
+      // Handle spreadsheet variations (trailing underscore)
+      if (item[k] !== undefined) return item[k];
+      if (item[k+'_'] !== undefined) return item[k+'_'];
+      return '-';
+    }
+
+    // Check Auth
+    if (sessionStorage.getItem('isLoggedIn') !== 'true' || JSON.parse(sessionStorage.getItem('userData')).role !== 'Admin') {
+      window.location.href = 'index.html';
+    }
+
+    async function fetchData() {
+      try {
+        const resp = await fetch(`${SCRIPT_URL}?action=getRekap&type=keluar`);
+        const json = await resp.json();
+        if (json.status === 'success') {
+          currentData = json.data;
+          renderTables();
+        }
+      } catch (err) {
+        console.error('Fetch error:', err);
+        showToast('Gagal memuat data', 'error');
+      }
+    }
+
+    function renderTables() {
+      const pendingBody = document.getElementById('pending-table-body');
+      const historyBody = document.getElementById('history-table-body');
+      const totalCount = document.getElementById('total-count');
+
+      // Add indexing
+      const dataWithIndex = currentData.map((item, idx) => ({ ...item, _idx: idx }));
+
+      // Filter Pending: nomor_surat contains "Menunggu" or status is "PENDING"
+      const pending = dataWithIndex.filter(item => {
+        const noSurat = (getVal(item, 'nomor_surat') || '').toString().toLowerCase();
+        const status = (getVal(item, 'status') || '').toString().toLowerCase();
+        return noSurat.includes('menunggu') || status === 'pending';
+      }).sort((a, b) => {
+        const timeA = safeParseDate(getVal(a, 'tanggal'))?.getTime() || 0;
+        const timeB = safeParseDate(getVal(b, 'tanggal'))?.getTime() || 0;
+        if (timeA !== timeB) return timeB - timeA;
+        return b._idx - a._idx;
+      });
+
+      // Filter History: all others (newest first)
+      const history = dataWithIndex.filter(item => {
+        const noSurat = (getVal(item, 'nomor_surat') || '').toString().toLowerCase();
+        const status = (getVal(item, 'status') || '').toString().toLowerCase();
+        return !noSurat.includes('menunggu') && status !== 'pending' && noSurat !== '-';
+      }).sort((a, b) => {
+        const timeA = safeParseDate(getVal(a, 'tanggal'))?.getTime() || 0;
+        const timeB = safeParseDate(getVal(b, 'tanggal'))?.getTime() || 0;
+        if (timeA !== timeB) return timeB - timeA;
+        return b._idx - a._idx;
+      });
+
+      totalCount.textContent = `Total: ${currentData.length}`;
+
+      // Render Pending
+      if (pending.length === 0) {
+        pendingBody.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-gray-400 font-medium">Tidak ada pengajuan yang menunggu persetujuan</td></tr>';
+      } else {
+        pendingBody.innerHTML = pending.map((item, idx) => `
+          <tr class="hover:bg-yellow-50/30 transition-colors">
+            <td class="px-6 py-4 text-sm text-gray-600">${formatTanggal(getVal(item, 'tanggal'))}</td>
+            <td class="px-6 py-4 text-sm font-semibold text-gray-700">${getVal(item, 'nama_pengirim')}</td>
+            <td class="px-6 py-4 text-sm text-gray-600">
+              <p class="font-bold text-gray-800">${getVal(item, 'perihal')}</p>
+              <p class="text-[10px] text-gray-400">Kode: ${getVal(item, 'kode_klasifikasi')} | Sifat: ${getVal(item, 'sifat_surat')}</p>
+            </td>
+            <td class="px-6 py-4 text-sm text-gray-600">${getVal(item, 'tujuan_surat')}</td>
+            <td class="px-6 py-4 text-center">
+              <button onclick='approveMail(${JSON.stringify(item).replace(/'/g, "&apos;")})' class="btn-approve text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1 mx-auto">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                Setujui
+              </button>
+            </td>
+          </tr>
+        `).join('');
+      }
+
+      // Render History
+      historyBody.innerHTML = history.map(item => `
+        <tr class="hover:bg-gray-50 transition-colors">
+          <td class="px-6 py-4">
+            <span class="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] font-bold rounded-full border border-green-200 uppercase">DISETUJUI</span>
+          </td>
+          <td class="px-6 py-4 text-sm font-bold text-blue-900">${getVal(item, 'nomor_surat')}</td>
+          <td class="px-6 py-4">
+            <p class="text-sm font-semibold text-gray-800">${getVal(item, 'perihal')}</p>
+            <p class="text-[10px] text-gray-400">👤 ${getVal(item, 'nama_pengirim')} • 📍 ${getVal(item, 'tujuan_surat')}</p>
+          </td>
+          <td class="px-6 py-4 text-xs text-gray-500">${formatTanggal(getVal(item, 'tanggal'))}</td>
+        </tr>
+      `).join('');
+    }
+
+    async function approveMail(item) {
+      const btn = event.currentTarget;
+      const originalHtml = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<span class="loading-spinner"></span>';
+
+      try {
+        const kode = getVal(item, 'kode_klasifikasi');
+        const tgl = getVal(item, 'tanggal');
+
+        // 1. Generate Nomor Surat
+        const result = await generateNomorSurat(kode, tgl);
+        
+        // 2. Save Updated Row
+        const saveRes = await saveApprovedSurat({
+          ...item,
+          tanggal: tgl,
+          nama_pengirim: getVal(item, 'nama_pengirim'),
+          perihal: getVal(item, 'perihal'),
+          sifat_surat: getVal(item, 'sifat_surat'),
+          kode_klasifikasi: kode,
+          tujuan_surat: getVal(item, 'tujuan_surat'),
+          nomor_surat: result.nomorSurat,
+          no_urut: result.noUrut,
+          status: 'DISETUJUI'
+        });
+
+        showToast('✓ Surat berhasil disetujui: ' + result.nomorSurat, 'success');
+        
+        // Reload data
+        setTimeout(fetchData, 2000);
+      } catch (err) {
+        console.error('Approval error:', err);
+        showToast('Gagal menyetujui surat', 'error');
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+      }
+    }
+
+    async function saveApprovedSurat(data) {
+      const url = new URL(SCRIPT_URL);
+      url.searchParams.append('action', 'saveSurat');
+      url.searchParams.append('type', 'keluar');
+      url.searchParams.append('no_urut', data.no_urut);
+      url.searchParams.append('tanggal', data.tanggal);
+      url.searchParams.append('nama_pengirim', data.nama_pengirim);
+      url.searchParams.append('perihal', data.perihal);
+      url.searchParams.append('sifat_surat', data.sifat_surat);
+      url.searchParams.append('kode_klasifikasi', data.kode_klasifikasi);
+      url.searchParams.append('tujuan_surat', data.tujuan_surat);
+      url.searchParams.append('nomor_surat', data.nomor_surat);
+      url.searchParams.append('status', 'DISETUJUI');
+
+      // Use no-cors since many GAS deployments don't have proper CORS
+      return fetch(url.toString(), { method: 'GET', mode: 'no-cors' });
+    }
+
+    // Logic Functions Copied from surat_keluar.html
+    function safeParseDate(input) {
+      if (!input) return null;
+      if (input instanceof Date) return new Date(input.getFullYear(), input.getMonth(), input.getDate());
+      let str = String(input).trim().replace(/^[a-z]+,\s*/i, '').replace(/,/g, '');
+      const simpleYMD = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (simpleYMD) return new Date(parseInt(simpleYMD[1]), parseInt(simpleYMD[2]) - 1, parseInt(simpleYMD[3]));
+      const months = { 'januari': 0, 'februari': 1, 'maret': 2, 'april': 3, 'mei': 4, 'juni': 5, 'juli': 6, 'agustus': 7, 'september': 8, 'oktober': 9, 'november': 10, 'desember': 11 };
+      const sm = str.toLowerCase().match(/(\d{1,2})\s+([a-z]+)\s+(\d{4})/);
+      if (sm && months[sm[2]] !== undefined) return new Date(parseInt(sm[3]), months[sm[2]], parseInt(sm[1]));
+      const d = new Date(str);
+      if (isNaN(d.getTime())) return null;
+      const shifted = new Date(d.getTime() + (12 * 60 * 60 * 1000));
+      return new Date(shifted.getFullYear(), shifted.getMonth(), shifted.getDate());
+    }
+
+    function toLocalDateString(dateInput) {
+      const d = safeParseDate(dateInput);
+      return d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : '';
+    }
+
+    function getSuffix(str) {
+      if (!str) return '';
+      const m = String(str).match(/[a-z]+$/i);
+      return m ? m[0].toLowerCase() : '';
+    }
+
+    function getSuffixFromNumber(n) {
+      let result = '';
+      while (n > 0) {
+        let remainder = (n - 1) % 26;
+        result = String.fromCharCode(97 + remainder) + result;
+        n = Math.floor((n - 1) / 26);
+      }
+      return result;
+    }
+
+    function getNextNoUrut(selectedDate, dataOverride) {
+      const rawData = dataOverride || currentData || [];
+      const normalizedSelected = toLocalDateString(selectedDate);
+      if (!normalizedSelected) return { noUrut: 1, suffix: '' };
+      
+      try {
+        if (!Array.isArray(rawData) || rawData.length === 0) return { noUrut: 1, suffix: '' };
+        
+        // Filter out PENDING records for calculation
+        const validData = rawData.filter(item => {
+           const noSurat = (item.nomor_surat || '').toString();
+           return !noSurat.includes('Menunggu');
+        });
+
+        const allData = validData.map(item => {
+          let rawTgl = '', rawNo = '', rawNomor = '';
+          for (let key in item) {
+             const keyLower = key.toLowerCase();
+             const val = String(item[key] || '').trim();
+             if (keyLower.includes('tanggal') || keyLower.includes('date')) rawTgl = val;
+             if (keyLower.includes('no') || keyLower.includes('urut') || keyLower.includes('nomor')) {
+                const parts = val.split('-');
+                const tailPart = parts[parts.length - 1]; 
+                const numericMatch = tailPart.match(/\d+/);
+                if (numericMatch) rawNo = numericMatch[0];
+                if (keyLower.includes('nomor')) rawNomor = val;
+             }
+          }
+          const time = safeParseDate(rawTgl)?.getTime() || 0;
+          return {
+            _localDate: toLocalDateString(rawTgl),
+            _noUrut: parseInt(rawNo) || 0,
+            _nomor: rawNomor,
+            _suffix: getSuffix(rawNomor),
+            _time: time
+          };
+        });
+
+        const selectedTime = safeParseDate(selectedDate)?.getTime() || 0;
+        const sameDayRecords = allData.filter(item => item._localDate === normalizedSelected);
+        const maxOnDay = sameDayRecords.length > 0 ? Math.max(...sameDayRecords.map(i => i._noUrut)) : 0;
+        
+        const systemDates = allData.filter(i => i._time > 0).map(i => ({ time: i._time, date: i._localDate }));
+        const latestTimeInSystem = systemDates.length > 0 ? Math.max(...systemDates.map(d => d.time)) : 0;
+        const systemMax = allData.length > 0 ? Math.max(...allData.map(i => i._noUrut)) : 0;
+
+        let baseNoUrut = 0;
+        let forceSuffix = false;
+
+        if (selectedTime > latestTimeInSystem) {
+            const daysDiff = Math.abs(Math.round((selectedTime - latestTimeInSystem) / (24 * 3600 * 1000)));
+            const jump = (daysDiff > 0 ? daysDiff : 0) + 2;
+            baseNoUrut = systemMax + jump;
+        } else if (selectedTime === latestTimeInSystem) {
+            baseNoUrut = maxOnDay + 1;
+        } else {
+            const laterDates = allData.filter(i => i._time > selectedTime);
+            if (laterDates.length === 0) {
+              baseNoUrut = systemMax + 1;
+            } else {
+              const tNextTime = Math.min(...laterDates.map(i => i._time));
+              const recordsOnTNext = allData.filter(i => i._time === tNextTime);
+              const nLimit = Math.min(...recordsOnTNext.map(i => i._noUrut));
+              const prevRecords = allData.filter(i => i._time < tNextTime);
+              const tPrevToTNextTime = Math.max(...prevRecords.map(i => i._time));
+              const tPrevToTNextDate = toLocalDateString(tPrevToTNextTime);
+              const daysDiffGap = Math.abs(Math.round((tNextTime - tPrevToTNextTime) / (24 * 3600 * 1000)));
+              const numReserved = (daysDiffGap > 0 ? daysDiffGap : 0) + 1;
+              const gapStart = nLimit - numReserved;
+              const gapEnd = nLimit - 1;
+              let candidateBase = (normalizedSelected === tPrevToTNextDate) ? maxOnDay : (maxOnDay || (gapStart - 1));
+              const candidate = candidateBase + 1;
+              if (candidate < gapStart) baseNoUrut = candidate;
+              else if (candidate <= gapEnd) baseNoUrut = candidate;
+              else { baseNoUrut = gapEnd; forceSuffix = true; }
+            }
+        }
+
+        let finalSuffix = '';
+        if (forceSuffix) {
+           const sameBaseRecords = allData.filter(i => i._noUrut === baseNoUrut);
+           const existingSuffixes = sameBaseRecords.map(i => i._suffix).filter(s => s !== '');
+           let sIdx = 1;
+           while (true) {
+             let candidate = getSuffixFromNumber(sIdx);
+             if (!existingSuffixes.includes(candidate)) { finalSuffix = candidate; break; }
+             sIdx++;
+             if (sIdx > 1000) break;
+           }
+        }
+        return { noUrut: baseNoUrut, suffix: finalSuffix };
+      } catch (err) { 
+        console.error('Logic Fail:', err); 
+        return { noUrut: 1, suffix: '' };
+      }
+    }
+
+    async function generateNomorSurat(kodeKlasifikasi, selectedDate) {
+      const response = await fetch(`${SCRIPT_URL}?action=getRekap&type=keluar`);
+      const result = await response.json();
+      const freshData = (result.status === 'success') ? result.data : [];
+      const { noUrut, suffix } = getNextNoUrut(selectedDate, freshData);
+      const nomorSurat = `${CONFIG.kode_wilayah}.${CONFIG.kode_satker}.${kodeKlasifikasi}-${noUrut}${suffix}`;
+      return { nomorSurat, noUrut, suffix };
+    }
+
+    function formatTanggal(tanggalStr) {
+      if (!tanggalStr) return '-';
+      try {
+        const date = safeParseDate(tanggalStr);
+        if (!date || isNaN(date.getTime())) return String(tanggalStr);
+        return date.toLocaleDateString('id-ID', { 
+           year: 'numeric', month: 'short', day: 'numeric' 
+        });
+      } catch (e) { return String(tanggalStr); }
+    }
+
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      const bgColor = type === 'success' ? 'bg-green-500' : 'bg-red-500';
+      toast.className = `${bgColor} text-white px-4 py-3 rounded-lg shadow-lg mb-2 flex items-center gap-2 animate-bounce`;
+      toast.innerHTML = `<span>${type === 'success' ? '✓' : '✕'}</span> ${message}`;
+      container.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    // Event Listeners
+    document.getElementById('refreshBtn').addEventListener('click', fetchData);
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      sessionStorage.clear();
+      window.location.href = 'index.html';
+    });
+
+    // Init
+    fetchData();
+    setInterval(fetchData, 30000); // Auto refresh every 30s
+  </script>
+ </body>
+</html>
