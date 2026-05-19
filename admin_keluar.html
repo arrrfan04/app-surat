@@ -99,9 +99,16 @@
 
       <!-- All History Section -->
       <section class="glass-card rounded-2xl shadow-xl overflow-hidden">
-        <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+        <div class="p-6 border-b border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
           <h2 class="text-lg font-bold text-gray-800">Riwayat Semua Surat</h2>
-          <span id="total-count" class="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded-full border border-blue-100">Total: -</span>
+          <div class="flex items-center gap-3 w-full md:w-auto">
+            <div class="relative flex-1 md:w-64">
+              <input type="text" id="historySearch" placeholder="Cari perihal, pengirim, atau nomor..." 
+                class="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all">
+              <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            </div>
+            <span id="total-count" class="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded-full border border-blue-100 whitespace-nowrap">Total: -</span>
+          </div>
         </div>
         <div class="max-h-[500px] overflow-auto">
           <table class="w-full text-left">
@@ -132,6 +139,7 @@
     };
 
     let currentData = [];
+    let historySearchTerm = '';
 
     function getVal(item, k) {
       if (!item) return '-';
@@ -180,11 +188,19 @@
         return b._idx - a._idx;
       });
 
-      // Filter History: all others (newest first)
+      // Filter History: all others (newest first) + Search
       const history = dataWithIndex.filter(item => {
         const noSurat = (getVal(item, 'nomor_surat') || '').toString().toLowerCase();
         const status = (getVal(item, 'status') || '').toString().toLowerCase();
-        return !noSurat.includes('menunggu') && status !== 'pending' && noSurat !== '-';
+        const perihal = (getVal(item, 'perihal') || '').toString().toLowerCase();
+        const pengirim = (getVal(item, 'nama_pengirim') || '').toString().toLowerCase();
+        
+        const matchesSearch = !historySearchTerm || 
+          noSurat.includes(historySearchTerm) || 
+          perihal.includes(historySearchTerm) || 
+          pengirim.includes(historySearchTerm);
+
+        return !noSurat.includes('menunggu') && status !== 'pending' && noSurat !== '-' && matchesSearch;
       }).sort((a, b) => {
         const timeA = safeParseDate(getVal(a, 'tanggal'))?.getTime() || 0;
         const timeB = safeParseDate(getVal(b, 'tanggal'))?.getTime() || 0;
@@ -246,12 +262,36 @@
         // 1. Generate Nomor Surat
         const result = await generateNomorSurat(kode, tgl);
         
+        // IMMEDIATE LOCAL UPDATE
+        // Find the index of the pending item in currentData
+        const pPerihal = getVal(item, 'perihal');
+        const pTgl = getVal(item, 'tanggal');
+        const pPengirim = getVal(item, 'nama_pengirim');
+        
+        const idx = currentData.findIndex(i => 
+          getVal(i, 'perihal') === pPerihal && 
+          getVal(i, 'tanggal') === pTgl &&
+          getVal(i, 'nama_pengirim') === pPengirim &&
+          (getVal(i, 'nomor_surat').includes('Menunggu') || getVal(i, 'status') === 'PENDING')
+        );
+
+        if (idx !== -1) {
+          // Update the local entry
+          currentData[idx] = {
+            ...currentData[idx],
+            nomor_surat: result.nomorSurat,
+            no_urut: result.noUrut,
+            status: 'DISETUJUI'
+          };
+          renderTables();
+        }
+        
         // 2. Save Updated Row
-        const saveRes = await saveApprovedSurat({
+        saveApprovedSurat({
           ...item,
           tanggal: tgl,
-          nama_pengirim: getVal(item, 'nama_pengirim'),
-          perihal: getVal(item, 'perihal'),
+          nama_pengirim: pPengirim,
+          perihal: pPerihal,
           sifat_surat: getVal(item, 'sifat_surat'),
           kode_klasifikasi: kode,
           tujuan_surat: getVal(item, 'tujuan_surat'),
@@ -262,8 +302,8 @@
 
         showToast('✓ Surat berhasil disetujui: ' + result.nomorSurat, 'success');
         
-        // Reload data
-        setTimeout(fetchData, 2000);
+        // Sync with server after delay
+        setTimeout(fetchData, 5000);
       } catch (err) {
         console.error('Approval error:', err);
         showToast('Gagal menyetujui surat', 'error');
@@ -459,6 +499,12 @@
     document.getElementById('logoutBtn').addEventListener('click', () => {
       sessionStorage.clear();
       window.location.href = 'index.html';
+    });
+
+    // Search Listener
+    document.getElementById('historySearch').addEventListener('input', (e) => {
+      historySearchTerm = e.target.value.toLowerCase().trim();
+      renderTables();
     });
 
     // Init
