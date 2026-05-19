@@ -354,15 +354,15 @@
       if (!input) return null;
       if (input instanceof Date) return new Date(input.getFullYear(), input.getMonth(), input.getDate());
       let str = String(input).trim().replace(/^[a-z]+,\s*/i, '').replace(/,/g, '');
-      const simpleYMD = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-      if (simpleYMD) return new Date(parseInt(simpleYMD[1]), parseInt(simpleYMD[2]) - 1, parseInt(simpleYMD[3]));
+      const ymd = str.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+      if (ymd) return new Date(parseInt(ymd[1]), parseInt(ymd[2]) - 1, parseInt(ymd[3]));
+      const dmy = str.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+      if (dmy) return new Date(parseInt(dmy[3]), parseInt(dmy[2]) - 1, parseInt(dmy[1]));
       const months = { 'januari': 0, 'februari': 1, 'maret': 2, 'april': 3, 'mei': 4, 'juni': 5, 'juli': 6, 'agustus': 7, 'september': 8, 'oktober': 9, 'november': 10, 'desember': 11 };
       const sm = str.toLowerCase().match(/(\d{1,2})\s+([a-z]+)\s+(\d{4})/);
       if (sm && months[sm[2]] !== undefined) return new Date(parseInt(sm[3]), months[sm[2]], parseInt(sm[1]));
       const d = new Date(str);
-      if (isNaN(d.getTime())) return null;
-      const shifted = new Date(d.getTime() + (12 * 60 * 60 * 1000));
-      return new Date(shifted.getFullYear(), shifted.getMonth(), shifted.getDate());
+      return isNaN(d.getTime()) ? null : new Date(d.getFullYear(), d.getMonth(), d.getDate());
     }
 
     function toLocalDateString(dateInput) {
@@ -435,11 +435,11 @@
         let baseNoUrut = 0;
         let forceSuffix = false;
 
-        if (selectedTime > latestTimeInSystem) {
+        if (selectedTime > latestTimeInSystem && latestTimeInSystem > 0) {
             const daysDiff = Math.abs(Math.round((selectedTime - latestTimeInSystem) / (24 * 3600 * 1000)));
-            const jump = (daysDiff > 0 ? daysDiff : 0) + 2;
+            const jump = (daysDiff > 0 && daysDiff < 31) ? (daysDiff + 1) : 1;
             baseNoUrut = systemMax + jump;
-        } else if (selectedTime === latestTimeInSystem) {
+        } else if (selectedTime === latestTimeInSystem && latestTimeInSystem > 0) {
             baseNoUrut = maxOnDay + 1;
         } else {
             const laterDates = allData.filter(i => i._time > selectedTime);
