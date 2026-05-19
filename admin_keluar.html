@@ -176,11 +176,27 @@
       // Add indexing
       const dataWithIndex = currentData.map((item, idx) => ({ ...item, _idx: idx }));
 
+      // Collect approved keys to hide duplicate pending entries
+      const approvedKeys = new Set();
+      dataWithIndex.forEach(item => {
+        const noSurat = (getVal(item, 'nomor_surat') || '').toString();
+        if (!noSurat.includes('Menunggu') && noSurat !== '-') {
+           const key = `${getVal(item, 'perihal')}|${getVal(item, 'tujuan_surat')}|${getVal(item, 'tanggal')}|${getVal(item, 'nama_pengirim')}`;
+           approvedKeys.add(key.toLowerCase());
+        }
+      });
+
       // Filter Pending: nomor_surat contains "Menunggu" or status is "PENDING"
       const pending = dataWithIndex.filter(item => {
         const noSurat = (getVal(item, 'nomor_surat') || '').toString().toLowerCase();
         const status = (getVal(item, 'status') || '').toString().toLowerCase();
-        return noSurat.includes('menunggu') || status === 'pending';
+        const isPending = noSurat.includes('menunggu') || status === 'pending';
+        
+        if (isPending) {
+           const key = `${getVal(item, 'perihal')}|${getVal(item, 'tujuan_surat')}|${getVal(item, 'tanggal')}|${getVal(item, 'nama_pengirim')}`;
+           return !approvedKeys.has(key.toLowerCase());
+        }
+        return false;
       }).sort((a, b) => {
         const timeA = safeParseDate(getVal(a, 'tanggal'))?.getTime() || 0;
         const timeB = safeParseDate(getVal(b, 'tanggal'))?.getTime() || 0;
@@ -195,12 +211,15 @@
         const perihal = (getVal(item, 'perihal') || '').toString().toLowerCase();
         const pengirim = (getVal(item, 'nama_pengirim') || '').toString().toLowerCase();
         
+        const isApproved = !noSurat.includes('menunggu') && status !== 'pending' && noSurat !== '-';
+        if (!isApproved) return false;
+
         const matchesSearch = !historySearchTerm || 
           noSurat.includes(historySearchTerm) || 
           perihal.includes(historySearchTerm) || 
           pengirim.includes(historySearchTerm);
 
-        return !noSurat.includes('menunggu') && status !== 'pending' && noSurat !== '-' && matchesSearch;
+        return matchesSearch;
       }).sort((a, b) => {
         const timeA = safeParseDate(getVal(a, 'tanggal'))?.getTime() || 0;
         const timeB = safeParseDate(getVal(b, 'tanggal'))?.getTime() || 0;
